@@ -169,6 +169,10 @@
         body.dark-mode .preview-download:hover {
             background: #3d6080;
         }
+        body.dark-mode .file-progress {
+            background: #1e3d52;
+            color: #b0d9ff;
+        }
 
         .chat-container {
             max-width: 1200px;
@@ -583,6 +587,12 @@
             transform: scale(1.02);
         }
 
+        .file-progress {
+            font-size: 0.75rem;
+            color: #1f5a7a;
+            margin-left: 8px;
+        }
+
         .recall-btn {
             background: transparent;
             border: none;
@@ -896,7 +906,7 @@
                 </div>
                 <h1>
                     20中学在线聊天室
-                    <span>P2P 文件修复版</span>
+                    <span>P2P 分块传输版</span>
                 </h1>
             </div>
             <div class="sub-bar">
@@ -927,7 +937,7 @@
         </div>
 
         <div class="messages-area" id="messageContainer">
-            <div class="system-message" id="welcomeMessage">👋 欢迎 · 文件传输已修复</div>
+            <div class="system-message" id="welcomeMessage">👋 欢迎 · 采用分块传输 · 文件图片可达</div>
         </div>
 
         <div class="input-area">
@@ -941,7 +951,7 @@
                 <button class="send-button" id="sendButton">发送</button>
             </div>
         </div>
-        <div class="info-tip" id="infoTip">✨ 文件/图片现在可以正常接收</div>
+        <div class="info-tip" id="infoTip">✨ 大文件自动分块传输 · 确保可达</div>
     </div>
 
     <!-- 裁剪模态框 -->
@@ -975,26 +985,25 @@
     </div>
 
     <script type="module">
-        // ---------- 20中学P2P聊天室 · 修复文件传输 ----------
+        // ---------- 20中学P2P聊天室 · 分块传输文件 ----------
         import Peer from 'https://esm.sh/peerjs@1.5.4?bundle-deps';
         import Cropper from 'https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/+esm';
 
-        // 配置 - 增加文件传输支持
+        // 配置
         const PEER_OPTIONS = {
             config: { 
                 iceServers: [ 
                     { urls: 'stun:stun.l.google.com:19302' },
                     { urls: 'stun:stun1.l.google.com:19302' }
                 ] 
-            },
-            // 增加数据通道配置，支持大文件传输
-            channelConfig: {
-                ordered: true,           // 保证消息顺序
-                maxRetransmits: 3,       // 最大重传次数
             }
         };
         
         const ROOM_ID = '20zhongxue-room';
+
+        // 分块传输配置
+        const CHUNK_SIZE = 16 * 1024; // 16KB每块，避免超出消息大小限制
+        const pendingChunks = new Map(); // 存储正在接收的文件块
 
         // 状态
         let peer = null;
@@ -1002,22 +1011,21 @@
         let myName = '同学' + Math.floor(Math.random() * 1000);
         let isAnonymous = false;
         let myAvatarData = null;
-        const connections = new Map();           // 所有连接
-        const mySentMessages = new Map();        // 已发送消息
+        const connections = new Map();
+        const mySentMessages = new Map();
         
-        // 在线用户管理
-        const onlineUsers = new Map();            // key: userId, value: { name, anon, avatar, lastSeen, missedHeartbeats }
-        const joinedNotified = new Set();         // 记录已经显示过加入消息的用户
+        const onlineUsers = new Map();
+        const joinedNotified = new Set();
         
-        const messageHistory = new Set();         // 存储最近收到的消息ID
+        const messageHistory = new Set();
         const MAX_HISTORY_SIZE = 200;
 
         let pendingFiles = [];
 
         // 心跳检测
         let heartbeatInterval = null;
-        const HEARTBEAT_INTERVAL = 8000;          // 8秒一次心跳
-        const MAX_MISSED_HEARTBEATS = 3;           // 允许连续丢失3次心跳才判定离线
+        const HEARTBEAT_INTERVAL = 8000;
+        const MAX_MISSED_HEARTBEATS = 3;
 
         // DOM 元素
         const messageContainer = document.getElementById('messageContainer');
@@ -1040,7 +1048,6 @@
         const applyCrop = document.getElementById('applyCrop');
         let cropper = null;
 
-        // 图片预览相关
         const previewModal = document.getElementById('previewModal');
         const previewImage = document.getElementById('previewImage');
         const previewSender = document.getElementById('previewSender');
@@ -1054,6 +1061,10 @@
             return Date.now() + '-' + Math.random().toString(36).substring(2, 10) + '-' + myId; 
         }
 
+        function generateFileId() {
+            return 'file_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10);
+        }
+
         function escapeHTML(str) { 
             return String(str).replace(/[&<>"]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m])); 
         }
@@ -1065,13 +1076,11 @@
             previewModal.style.display = 'flex';
         }
 
-        // 关闭预览
         function closeImagePreview() {
             previewModal.style.display = 'none';
             previewImage.src = '';
         }
 
-        // 下载图片
         function downloadImage() {
             const imgSrc = previewImage.src;
             if (!imgSrc) return;
@@ -1087,7 +1096,6 @@
             document.body.removeChild(link);
         }
 
-        // 预览按钮事件
         previewCloseBtn.addEventListener('click', closeImagePreview);
         previewDownloadBtn.addEventListener('click', downloadImage);
         
@@ -1128,7 +1136,6 @@
             fileInput.value = '';
         });
 
-        // 日夜模式
         themeToggleBtn.addEventListener('click', () => {
             document.body.classList.toggle('dark-mode');
         });
@@ -1182,7 +1189,6 @@
             avatarPreview.textContent = '📷';
         });
 
-        // 改名
         renameButton.addEventListener('click', () => {
             const newName = nicknameInput.value.trim();
             if (newName && newName !== myName) {
@@ -1203,13 +1209,11 @@
             isAnonymous = e.target.checked;
         });
 
-        // 更新在线人数显示
         function updatePeerCount() {
             const count = onlineUsers.size;
             peerCountDisplay.innerHTML = `${count} 人在线`;
         }
 
-        // 添加用户到在线集合
         function addOnlineUser(userId, userData) {
             if (!userId || userId === myId) return false;
             
@@ -1243,7 +1247,6 @@
             }
         }
 
-        // 从在线集合中移除用户
         function removeOnlineUser(userId, reason = '离开') {
             if (!userId || userId === myId) return false;
             
@@ -1262,7 +1265,6 @@
             return false;
         }
 
-        // 广播心跳
         function broadcastHeartbeat() {
             const heartbeatMsg = {
                 type: 'heartbeat',
@@ -1280,7 +1282,6 @@
             }
         }
 
-        // 请求全网用户列表
         function requestUserList() {
             const requestMsg = {
                 type: 'requestUserList',
@@ -1295,7 +1296,6 @@
             }
         }
 
-        // 发送用户列表给指定连接
         function sendUserListTo(conn) {
             if (!conn || !conn.open) return;
             
@@ -1321,7 +1321,6 @@
             try { conn.send(listMsg); } catch(e) {}
         }
 
-        // 心跳检测
         function checkUserTimeouts() {
             const now = Date.now();
             const timeoutUsers = [];
@@ -1424,7 +1423,7 @@
                         link.href = f.data;
                         link.download = f.name;
                         link.classList.add('file-link');
-                        link.textContent = `📎 ${f.name} (${(f.data.length * 0.75 / 1024).toFixed(1)}KB)`;
+                        link.textContent = `📎 ${f.name} (${(f.size / 1024).toFixed(1)}KB)`;
                         attachDiv.appendChild(link);
                     }
                 });
@@ -1475,79 +1474,165 @@
             }
         }
 
-        // 广播消息 - 修复文件传输
-        async function broadcastMessage(text) {
-            const msgId = generateMsgId();
-            let fileArray = null;
-            
-            if (pendingFiles.length > 0) {
-                fileArray = await Promise.all(pendingFiles.map(async (file) => {
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => resolve({ 
-                            name: file.name, 
-                            type: file.type, 
-                            data: e.target.result,
-                            size: file.size
-                        });
-                        reader.readAsDataURL(file);
-                    });
-                }));
-            }
-
-            const messagePayload = {
-                type: 'chat', 
-                msgId, 
-                text: text || '',
-                sender: isAnonymous ? '匿名' : myName,
-                time: Date.now(), 
-                originId: myId,
-                files: fileArray,
-                senderAvatar: isAnonymous ? null : (myAvatarData || null),
-                senderAnon: isAnonymous
-            };
-
-            mySentMessages.set(msgId, messagePayload);
-            addMessageToUI(messagePayload, true);
-
-            messageHistory.add(msgId);
-            if (messageHistory.size > MAX_HISTORY_SIZE) {
-                const first = messageHistory.values().next().value;
-                messageHistory.delete(first);
-            }
-
-            // 逐个发送给每个连接，并添加错误处理
-            let successCount = 0;
-            for (let [peerId, conn] of connections.entries()) {
-                if (conn.open) {
+        // 分块发送文件
+        async function sendFileInChunks(conn, fileData, fileId, totalChunks) {
+            for (let i = 0; i < totalChunks; i++) {
+                const start = i * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, fileData.data.length);
+                const chunk = fileData.data.substring(start, end);
+                
+                const chunkMsg = {
+                    type: 'fileChunk',
+                    fileId: fileId,
+                    chunkIndex: i,
+                    totalChunks: totalChunks,
+                    data: chunk,
+                    fileName: fileData.name,
+                    fileType: fileData.type,
+                    fileSize: fileData.size,
+                    sender: isAnonymous ? '匿名' : myName,
+                    senderAnon: isAnonymous,
+                    time: Date.now()
+                };
+                
+                try {
+                    await conn.send(chunkMsg);
+                    // 添加小延迟避免发送过快
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                } catch (e) {
+                    console.warn('发送块失败', i, e);
+                    // 重试一次
                     try {
-                        // 对于大文件，可能需要更长的传输时间
-                        conn.send(messagePayload);
-                        successCount++;
-                    } catch(e) {
-                        console.warn(`发送给 ${peerId} 失败:`, e);
-                        // 尝试重新发送一次
-                        setTimeout(() => {
-                            if (conn.open) {
-                                try { conn.send(messagePayload); } catch(e) {}
-                            }
-                        }, 1000);
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                        await conn.send(chunkMsg);
+                    } catch (e2) {
+                        console.error('重试也失败', i, e2);
                     }
                 }
             }
+        }
+
+        // 广播消息 - 分块传输文件
+        async function broadcastMessage(text) {
+            const msgId = generateMsgId();
             
-            console.log(`文件/消息发送完成: 成功 ${successCount}/${connections.size}`);
+            // 如果没有文件，直接发送文字消息
+            if (pendingFiles.length === 0) {
+                const messagePayload = {
+                    type: 'chat', 
+                    msgId, 
+                    text: text || '',
+                    sender: isAnonymous ? '匿名' : myName,
+                    time: Date.now(), 
+                    originId: myId,
+                    files: null,
+                    senderAvatar: isAnonymous ? null : (myAvatarData || null),
+                    senderAnon: isAnonymous
+                };
+
+                mySentMessages.set(msgId, messagePayload);
+                addMessageToUI(messagePayload, true);
+                messageHistory.add(msgId);
+
+                for (let conn of connections.values()) {
+                    if (conn.open) {
+                        try { conn.send(messagePayload); } catch(e) {}
+                    }
+                }
+                
+                messageInput.value = '';
+                return;
+            }
+
+            // 处理文件
+            for (const file of pendingFiles) {
+                const fileId = generateFileId();
+                
+                // 读取文件为DataURL
+                const fileData = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve({
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        data: e.target.result
+                    });
+                    reader.readAsDataURL(file);
+                });
+
+                // 计算分块数量
+                const totalChunks = Math.ceil(fileData.data.length / CHUNK_SIZE);
+                
+                // 先发送文件信息消息
+                const fileInfoMsg = {
+                    type: 'fileInfo',
+                    fileId: fileId,
+                    fileName: file.name,
+                    fileType: file.type,
+                    fileSize: file.size,
+                    totalChunks: totalChunks,
+                    sender: isAnonymous ? '匿名' : myName,
+                    senderAnon: isAnonymous,
+                    senderAvatar: isAnonymous ? null : (myAvatarData || null),
+                    time: Date.now(),
+                    originId: myId,
+                    msgId: generateMsgId()
+                };
+
+                // 本地显示文件信息
+                const displayMsg = {
+                    type: 'chat',
+                    msgId: fileInfoMsg.msgId,
+                    text: text || '',
+                    sender: fileInfoMsg.sender,
+                    time: fileInfoMsg.time,
+                    files: [{
+                        name: file.name,
+                        type: file.type,
+                        data: '', // 暂时为空，等接收完成后再显示
+                        size: file.size
+                    }],
+                    senderAvatar: fileInfoMsg.senderAvatar,
+                    senderAnon: fileInfoMsg.senderAnon
+                };
+                
+                mySentMessages.set(fileInfoMsg.msgId, displayMsg);
+                addMessageToUI(displayMsg, true);
+                messageHistory.add(fileInfoMsg.msgId);
+
+                // 向每个连接发送文件
+                for (let conn of connections.values()) {
+                    if (conn.open) {
+                        try {
+                            // 发送文件信息
+                            await conn.send(fileInfoMsg);
+                            // 发送文件块
+                            await sendFileInChunks(conn, fileData, fileId, totalChunks);
+                            
+                            // 发送完成消息
+                            const completeMsg = {
+                                type: 'fileComplete',
+                                fileId: fileId,
+                                msgId: fileInfoMsg.msgId,
+                                originId: myId
+                            };
+                            await conn.send(completeMsg);
+                        } catch(e) {
+                            console.warn('发送文件失败', e);
+                        }
+                    }
+                }
+            }
 
             pendingFiles = [];
             updateFilePreview();
+            messageInput.value = '';
         }
 
         // 处理接收到的数据
         function handleData(conn, data) {
-            // 防止处理自己的消息
             if (data.originId === myId || data.userId === myId) return;
             
-            // 检查消息历史
             if (data.msgId && messageHistory.has(data.msgId)) {
                 return;
             }
@@ -1572,14 +1657,80 @@
                 return;
             }
 
-            // 处理聊天消息 - 包括文件和图片
+            // 处理文件信息
+            if (data.type === 'fileInfo') {
+                // 初始化文件接收
+                pendingChunks.set(data.fileId, {
+                    chunks: new Array(data.totalChunks),
+                    receivedChunks: 0,
+                    totalChunks: data.totalChunks,
+                    fileName: data.fileName,
+                    fileType: data.fileType,
+                    fileSize: data.fileSize,
+                    sender: data.sender,
+                    senderAnon: data.senderAnon,
+                    senderAvatar: data.senderAvatar,
+                    msgId: data.msgId,
+                    time: data.time
+                });
+                return;
+            }
+
+            // 处理文件块
+            if (data.type === 'fileChunk') {
+                const fileData = pendingChunks.get(data.fileId);
+                if (fileData) {
+                    fileData.chunks[data.chunkIndex] = data.data;
+                    fileData.receivedChunks++;
+                    
+                    // 如果接收完成，组装文件
+                    if (fileData.receivedChunks === fileData.totalChunks) {
+                        const fullData = fileData.chunks.join('');
+                        
+                        // 创建消息显示
+                        const msgData = {
+                            type: 'chat',
+                            msgId: fileData.msgId,
+                            text: '',
+                            sender: fileData.sender,
+                            time: fileData.time,
+                            files: [{
+                                name: fileData.fileName,
+                                type: fileData.fileType,
+                                data: fullData,
+                                size: fileData.fileSize
+                            }],
+                            senderAvatar: fileData.senderAvatar,
+                            senderAnon: fileData.senderAnon
+                        };
+                        
+                        addMessageToUI(msgData, false);
+                        pendingChunks.delete(data.fileId);
+                        
+                        // 转发给其他连接
+                        for (let [peerId, otherConn] of connections.entries()) {
+                            if (peerId !== conn.peer && otherConn.open) {
+                                try { 
+                                    otherConn.send(data); 
+                                } catch(e) {}
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+
+            // 处理文件完成
+            if (data.type === 'fileComplete') {
+                // 可以忽略，已经在块接收完成时处理了
+                return;
+            }
+
+            // 处理聊天消息
             if (data.type === 'chat') {
                 if (data.recalled) return;
-                
-                // 收到文件/图片消息
                 addMessageToUI(data, false);
                 
-                // 消息中继 - 转发给其他连接
                 for (let [peerId, otherConn] of connections.entries()) {
                     if (peerId !== conn.peer && otherConn.open) {
                         try { 
@@ -1587,13 +1738,7 @@
                         } catch(e) {}
                     }
                 }
-                
-                // 如果有文件，在控制台显示接收成功
-                if (data.files && data.files.length > 0) {
-                    console.log(`收到文件/图片从 ${data.sender}:`, data.files.map(f => f.name));
-                }
             } 
-            // 处理撤回消息
             else if (data.type === 'recall') {
                 if (data.msgId) {
                     document.querySelectorAll(`[data-msgid="${data.msgId}"]`).forEach(el => el.remove());
@@ -1604,11 +1749,9 @@
                     }
                 }
             }
-            // 处理用户列表请求
             else if (data.type === 'requestUserList') {
                 sendUserListTo(conn);
             }
-            // 接收用户列表
             else if (data.type === 'userList') {
                 if (data.users && Array.isArray(data.users)) {
                     data.users.forEach(user => {
@@ -1624,7 +1767,6 @@
             }
         }
 
-        // 建立新连接
         function setupConnection(conn) {
             const remoteId = conn.peer;
             
@@ -1665,7 +1807,6 @@
             }, 500);
         }
 
-        // 主动连接
         function connectToPeer(remoteId) {
             if (!peer || remoteId === myId || connections.has(remoteId)) return;
             
@@ -1691,7 +1832,6 @@
             }, 10000);
         }
 
-        // 启动心跳检测
         function startHeartbeat() {
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             
@@ -1708,7 +1848,6 @@
             }, HEARTBEAT_INTERVAL);
         }
 
-        // 初始化Peer
         function initPeer() {
             if (peer) {
                 peer.destroy();
@@ -1716,6 +1855,7 @@
                 onlineUsers.clear();
                 joinedNotified.clear();
                 messageHistory.clear();
+                pendingChunks.clear();
             }
 
             peer = new Peer(ROOM_ID, PEER_OPTIONS);
@@ -1787,19 +1927,16 @@
             });
         }
 
-        // 启动
         initPeer();
         
         setInterval(() => {
             updatePeerCount();
         }, 2000);
 
-        // 发送消息
         sendButton.addEventListener('click', async () => {
             const text = messageInput.value.trim();
             if (!text && pendingFiles.length === 0) return;
             await broadcastMessage(text);
-            messageInput.value = '';
         });
         
         messageInput.addEventListener('keypress', (e) => { 
@@ -1809,7 +1946,8 @@
         window.__debug = { 
             connections: connections, 
             myId: myId,
-            onlineUsers: onlineUsers
+            onlineUsers: onlineUsers,
+            pendingChunks: pendingChunks
         };
     </script>
 </body>
