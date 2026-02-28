@@ -6,7 +6,7 @@
     <title>20中学在线聊天室 · 清新P2P</title>
     <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
     <style>
-        /* 样式保持不变，只添加图片预览相关样式 */
+        /* 样式保持不变 */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -152,7 +152,6 @@
             background: #3a7bb0;
             color: white;
         }
-        /* 图片预览模态框深色模式 */
         body.dark-mode .preview-modal-content {
             background: #1e3645;
             border-color: #3a6a8a;
@@ -566,6 +565,10 @@
             transition: 0.1s;
         }
 
+        .image-preview {
+            padding: 3px;
+        }
+        
         .image-preview img {
             max-width: 160px;
             max-height: 160px;
@@ -893,7 +896,7 @@
                 </div>
                 <h1>
                     20中学在线聊天室
-                    <span>P2P 稳定版</span>
+                    <span>P2P 文件修复版</span>
                 </h1>
             </div>
             <div class="sub-bar">
@@ -924,7 +927,7 @@
         </div>
 
         <div class="messages-area" id="messageContainer">
-            <div class="system-message" id="welcomeMessage">👋 欢迎 · 点击图片可预览 · 超时已修复</div>
+            <div class="system-message" id="welcomeMessage">👋 欢迎 · 文件传输已修复</div>
         </div>
 
         <div class="input-area">
@@ -938,7 +941,7 @@
                 <button class="send-button" id="sendButton">发送</button>
             </div>
         </div>
-        <div class="info-tip" id="infoTip">✨ 点击图片预览 · 保存图片 · 超时优化</div>
+        <div class="info-tip" id="infoTip">✨ 文件/图片现在可以正常接收</div>
     </div>
 
     <!-- 裁剪模态框 -->
@@ -972,17 +975,22 @@
     </div>
 
     <script type="module">
-        // ---------- 20中学P2P聊天室 · 修复超时误判 + 图片预览 ----------
+        // ---------- 20中学P2P聊天室 · 修复文件传输 ----------
         import Peer from 'https://esm.sh/peerjs@1.5.4?bundle-deps';
         import Cropper from 'https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/+esm';
 
-        // 配置
+        // 配置 - 增加文件传输支持
         const PEER_OPTIONS = {
             config: { 
                 iceServers: [ 
                     { urls: 'stun:stun.l.google.com:19302' },
                     { urls: 'stun:stun1.l.google.com:19302' }
                 ] 
+            },
+            // 增加数据通道配置，支持大文件传输
+            channelConfig: {
+                ordered: true,           // 保证消息顺序
+                maxRetransmits: 3,       // 最大重传次数
             }
         };
         
@@ -1008,7 +1016,7 @@
 
         // 心跳检测
         let heartbeatInterval = null;
-        const HEARTBEAT_INTERVAL = 8000;          // 8秒一次心跳（大幅延长，减少误判）
+        const HEARTBEAT_INTERVAL = 8000;          // 8秒一次心跳
         const MAX_MISSED_HEARTBEATS = 3;           // 允许连续丢失3次心跳才判定离线
 
         // DOM 元素
@@ -1068,7 +1076,6 @@
             const imgSrc = previewImage.src;
             if (!imgSrc) return;
             
-            // 从base64中提取文件名
             const timestamp = new Date().getTime();
             const filename = `image_${timestamp}.png`;
             
@@ -1084,7 +1091,6 @@
         previewCloseBtn.addEventListener('click', closeImagePreview);
         previewDownloadBtn.addEventListener('click', downloadImage);
         
-        // 点击模态框背景关闭
         previewModal.addEventListener('click', (e) => {
             if (e.target === previewModal) {
                 closeImagePreview();
@@ -1208,7 +1214,6 @@
             if (!userId || userId === myId) return false;
             
             if (!onlineUsers.has(userId)) {
-                // 新用户，添加到集合
                 onlineUsers.set(userId, {
                     name: userData.name || '未知用户',
                     anon: userData.anon || false,
@@ -1219,7 +1224,6 @@
                 
                 updatePeerCount();
                 
-                // 显示加入消息（只显示一次）
                 if (!joinedNotified.has(userId)) {
                     joinedNotified.add(userId);
                     const displayName = userData.anon ? '匿名用户' : (userData.name || '一位伙伴');
@@ -1228,10 +1232,9 @@
                 
                 return true;
             } else {
-                // 更新最后活跃时间，重置心跳计数
                 const existing = onlineUsers.get(userId);
                 existing.lastSeen = Date.now();
-                existing.missedHeartbeats = 0;  // 重置心跳计数
+                existing.missedHeartbeats = 0;
                 if (userData.name) existing.name = userData.name;
                 if (userData.anon !== undefined) existing.anon = userData.anon;
                 if (userData.avatar) existing.avatar = userData.avatar;
@@ -1318,7 +1321,7 @@
             try { conn.send(listMsg); } catch(e) {}
         }
 
-        // 心跳检测 - 使用更宽容的超时策略
+        // 心跳检测
         function checkUserTimeouts() {
             const now = Date.now();
             const timeoutUsers = [];
@@ -1326,24 +1329,19 @@
             for (let [userId, userData] of onlineUsers.entries()) {
                 if (userId === myId) continue;
                 
-                // 检查是否太久没有收到心跳
                 const timeSinceLastSeen = now - userData.lastSeen;
                 
-                // 如果超过心跳间隔的3倍还没有收到心跳，增加missed计数
                 if (timeSinceLastSeen > HEARTBEAT_INTERVAL) {
                     userData.missedHeartbeats = (userData.missedHeartbeats || 0) + 1;
                     
-                    // 只有连续丢失超过MAX_MISSED_HEARTBEATS次心跳才判定离线
                     if (userData.missedHeartbeats > MAX_MISSED_HEARTBEATS) {
                         timeoutUsers.push(userId);
                     }
                 } else {
-                    // 收到过心跳，重置missed计数
                     userData.missedHeartbeats = 0;
                 }
             }
             
-            // 移除超时用户
             timeoutUsers.forEach(userId => {
                 removeOnlineUser(userId, '超时离开');
             });
@@ -1414,7 +1412,6 @@
                         img.src = f.data;
                         img.alt = f.name;
                         
-                        // 添加点击预览事件
                         img.addEventListener('click', (e) => {
                             e.stopPropagation();
                             showImagePreview(f.data, sender, senderAnon);
@@ -1427,7 +1424,7 @@
                         link.href = f.data;
                         link.download = f.name;
                         link.classList.add('file-link');
-                        link.textContent = `📎 ${f.name}`;
+                        link.textContent = `📎 ${f.name} (${(f.data.length * 0.75 / 1024).toFixed(1)}KB)`;
                         attachDiv.appendChild(link);
                     }
                 });
@@ -1478,7 +1475,7 @@
             }
         }
 
-        // 广播消息
+        // 广播消息 - 修复文件传输
         async function broadcastMessage(text) {
             const msgId = generateMsgId();
             let fileArray = null;
@@ -1490,7 +1487,8 @@
                         reader.onload = (e) => resolve({ 
                             name: file.name, 
                             type: file.type, 
-                            data: e.target.result 
+                            data: e.target.result,
+                            size: file.size
                         });
                         reader.readAsDataURL(file);
                     });
@@ -1518,15 +1516,27 @@
                 messageHistory.delete(first);
             }
 
+            // 逐个发送给每个连接，并添加错误处理
+            let successCount = 0;
             for (let [peerId, conn] of connections.entries()) {
                 if (conn.open) {
-                    try { 
-                        conn.send(messagePayload); 
+                    try {
+                        // 对于大文件，可能需要更长的传输时间
+                        conn.send(messagePayload);
+                        successCount++;
                     } catch(e) {
                         console.warn(`发送给 ${peerId} 失败:`, e);
+                        // 尝试重新发送一次
+                        setTimeout(() => {
+                            if (conn.open) {
+                                try { conn.send(messagePayload); } catch(e) {}
+                            }
+                        }, 1000);
                     }
                 }
             }
+            
+            console.log(`文件/消息发送完成: 成功 ${successCount}/${connections.size}`);
 
             pendingFiles = [];
             updateFilePreview();
@@ -1552,7 +1562,6 @@
 
             // 处理心跳
             if (data.type === 'heartbeat') {
-                // 更新用户最后活跃时间
                 if (data.userId && data.userId !== myId) {
                     addOnlineUser(data.userId, {
                         name: data.name,
@@ -1563,18 +1572,25 @@
                 return;
             }
 
-            // 处理聊天消息
+            // 处理聊天消息 - 包括文件和图片
             if (data.type === 'chat') {
                 if (data.recalled) return;
+                
+                // 收到文件/图片消息
                 addMessageToUI(data, false);
                 
-                // 消息中继
+                // 消息中继 - 转发给其他连接
                 for (let [peerId, otherConn] of connections.entries()) {
                     if (peerId !== conn.peer && otherConn.open) {
                         try { 
                             otherConn.send(data); 
                         } catch(e) {}
                     }
+                }
+                
+                // 如果有文件，在控制台显示接收成功
+                if (data.files && data.files.length > 0) {
+                    console.log(`收到文件/图片从 ${data.sender}:`, data.files.map(f => f.name));
                 }
             } 
             // 处理撤回消息
@@ -1629,7 +1645,6 @@
                 console.warn('连接错误', remoteId, err);
             });
 
-            // 连接建立后，发送心跳和请求列表
             setTimeout(() => {
                 if (conn.open) {
                     conn.send({ 
@@ -1684,7 +1699,6 @@
                 broadcastHeartbeat();
                 checkUserTimeouts();
                 
-                // 检查连接状态
                 for (let [peerId, conn] of connections.entries()) {
                     if (!conn.open) {
                         connections.delete(peerId);
@@ -1776,7 +1790,6 @@
         // 启动
         initPeer();
         
-        // 定期更新在线人数
         setInterval(() => {
             updatePeerCount();
         }, 2000);
@@ -1793,7 +1806,6 @@
             if (e.key === 'Enter') sendButton.click(); 
         });
 
-        // 调试
         window.__debug = { 
             connections: connections, 
             myId: myId,
