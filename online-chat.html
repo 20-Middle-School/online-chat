@@ -6,7 +6,6 @@
     <title>20中学在线聊天室 · 清新P2P</title>
     <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
     <style>
-        /* 样式保持不变 */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -151,23 +150,6 @@
         body.dark-mode .crop-btn.primary {
             background: #3a7bb0;
             color: white;
-        }
-        body.dark-mode .preview-modal-content {
-            background: #1e3645;
-            border-color: #3a6a8a;
-        }
-        body.dark-mode .preview-sender {
-            color: #e2f0ff;
-        }
-        body.dark-mode .preview-close,
-        body.dark-mode .preview-download {
-            background: #2d4a60;
-            color: #e2f0ff;
-            border-color: #3f6e8c;
-        }
-        body.dark-mode .preview-close:hover,
-        body.dark-mode .preview-download:hover {
-            background: #3d6080;
         }
 
         .chat-container {
@@ -583,11 +565,6 @@
             opacity: 0.5;
         }
 
-        .recall-btn:hover {
-            opacity: 1;
-            background: rgba(200, 225, 245, 0.5);
-        }
-
         .system-message {
             text-align: center;
             font-size: 0.75rem;
@@ -684,7 +661,7 @@
         }
         
         .send-button {
-            background: #8fc8f0;
+            background: #2d7fc1;  /* 加深后的蓝色 */
             border: none;
             border-radius: 60px;
             padding: 12px 28px;
@@ -694,6 +671,10 @@
             cursor: pointer;
             border: 1px solid white;
             white-space: nowrap;
+            transition: background 0.1s;
+        }
+        .send-button:hover {
+            background: #1a6bb0;
         }
 
         .info-tip {
@@ -759,75 +740,14 @@
             background: #1a6bb0;
         }
 
-        /* 图片预览模态框 */
-        .preview-modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
+        #previewModal .modal-content {
+            max-width: 800px;
+            text-align: center;
         }
-        .preview-modal-content {
-            max-width: 90vw;
-            max-height: 90vh;
-            background: white;
-            border-radius: 24px;
-            padding: 20px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-        }
-        .preview-image-container {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        .preview-image {
-            max-width: 80vw;
-            max-height: 70vh;
-            object-fit: contain;
-            border-radius: 12px;
-        }
-        .preview-info {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 16px;
-            padding-top: 12px;
-            border-top: 1px solid #e0eefc;
-        }
-        .preview-sender {
-            font-size: 0.9rem;
-            color: #174257;
-        }
-        .preview-actions {
-            display: flex;
-            gap: 12px;
-        }
-        .preview-close, .preview-download {
-            padding: 8px 20px;
-            border-radius: 40px;
-            border: 1px solid #c7ddef;
-            background: white;
-            color: #1f5a7a;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: 0.1s;
-        }
-        .preview-close:hover, .preview-download:hover {
-            background: #e7f2fc;
-        }
-        .preview-download {
-            background: #2d7fc1;
-            color: white;
-            border: none;
-        }
-        .preview-download:hover {
-            background: #1a6bb0;
+        #previewImage {
+            max-width: 100%;
+            max-height: 60vh;
+            border-radius: 8px;
         }
 
         @keyframes fadeIn {
@@ -863,9 +783,6 @@
             .file-upload-label { padding: 7px 14px; font-size: 0.85rem; }
             .send-button { padding: 10px 20px; font-size: 0.9rem; }
             .file-tag { font-size: 0.75rem; padding: 3px 10px; }
-            
-            .preview-modal-content { padding: 12px; }
-            .preview-image { max-width: 85vw; max-height: 65vh; }
         }
 
         @media (max-width: 480px) {
@@ -883,7 +800,7 @@
                 </div>
                 <h1>
                     20中学在线聊天室
-                    <span>P2P 文件修复版</span>
+                    <span>P2P 自由清新版 畅所欲言 无任何限制</span>
                 </h1>
             </div>
             <div class="sub-bar">
@@ -914,7 +831,7 @@
         </div>
 
         <div class="messages-area" id="messageContainer">
-            <div class="system-message" id="welcomeMessage">👋 欢迎 · 文件传输已修复</div>
+            <div class="system-message" id="welcomeMessage">👋 欢迎 · 布局优化 · 头像可裁剪</div>
         </div>
 
         <div class="input-area">
@@ -928,7 +845,7 @@
                 <button class="send-button" id="sendButton">发送</button>
             </div>
         </div>
-        <div class="info-tip" id="infoTip">✨ 文件/图片现在可以正常接收</div>
+        <div class="info-tip" id="infoTip">✨ 1.0版本 · 定期更新 · 敬请期待</div>
     </div>
 
     <!-- 裁剪模态框 -->
@@ -946,23 +863,21 @@
     </div>
 
     <!-- 图片预览模态框 -->
-    <div class="preview-modal" id="previewModal">
-        <div class="preview-modal-content">
-            <div class="preview-image-container">
-                <img class="preview-image" id="previewImage" src="" alt="预览">
+    <div class="modal" id="previewModal">
+        <div class="modal-content">
+            <div class="modal-title">🖼️ 图片预览</div>
+            <div style="max-height: 70vh; overflow: auto; margin-bottom: 15px;">
+                <img id="previewImage" src="" alt="预览">
             </div>
-            <div class="preview-info">
-                <span class="preview-sender" id="previewSender"></span>
-                <div class="preview-actions">
-                    <button class="preview-close" id="previewCloseBtn">关闭</button>
-                    <button class="preview-download" id="previewDownloadBtn">保存图片</button>
-                </div>
+            <div class="crop-actions">
+                <button class="crop-btn" id="closePreview">关闭</button>
+                <button class="crop-btn primary" id="saveImage">保存图片</button>
             </div>
         </div>
     </div>
 
     <script type="module">
-        // ---------- 20中学P2P聊天室 · 整合可靠的文件传输 ----------
+        // ---------- 20中学P2P聊天室 · 最终修复版（在线列表完整 + 进出提示同步）----------
         import Peer from 'https://esm.sh/peerjs@1.5.4?bundle-deps';
         import Cropper from 'https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/+esm';
 
@@ -979,19 +894,10 @@
         const connections = new Map();
         const mySentMessages = new Map();
 
+        const receivedMsgIds = new Set(); // 消息去重
+        const onlineUsers = new Map();     // 在线用户列表，key=originId, value={ name, avatar, anon }
+
         let pendingFiles = [];
-
-        // 在线用户管理
-        const onlineUsers = new Map();            // key: userId, value: { name, anon, avatar, lastSeen, missedHeartbeats }
-        const joinedNotified = new Set();         // 记录已经显示过加入消息的用户
-        
-        const messageHistory = new Set();         // 存储最近收到的消息ID
-        const MAX_HISTORY_SIZE = 200;
-
-        // 心跳检测
-        let heartbeatInterval = null;
-        const HEARTBEAT_INTERVAL = 8000;          // 8秒一次心跳
-        const MAX_MISSED_HEARTBEATS = 3;           // 允许连续丢失3次心跳才判定离线
 
         // DOM 元素
         const messageContainer = document.getElementById('messageContainer');
@@ -1014,62 +920,48 @@
         const applyCrop = document.getElementById('applyCrop');
         let cropper = null;
 
-        // 图片预览相关
         const previewModal = document.getElementById('previewModal');
         const previewImage = document.getElementById('previewImage');
-        const previewSender = document.getElementById('previewSender');
-        const previewCloseBtn = document.getElementById('previewCloseBtn');
-        const previewDownloadBtn = document.getElementById('previewDownloadBtn');
+        const closePreview = document.getElementById('closePreview');
+        const saveImage = document.getElementById('saveImage');
 
         nicknameInput.value = myName;
 
-        // 工具函数
-        function generateMsgId() { return Date.now() + '-' + Math.random().toString(36).substring(2,10); }
-
-        function escapeHTML(str) { return String(str).replace(/[&<>"]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m])); }
-
-        // 图片预览函数
-        function showImagePreview(imgSrc, senderName, isAnon) {
-            previewImage.src = imgSrc;
-            previewSender.textContent = `发送者: ${isAnon ? '匿名' : senderName}`;
-            previewModal.style.display = 'flex';
-        }
-
-        function closeImagePreview() {
+        // 预览模态框事件
+        closePreview.addEventListener('click', () => {
             previewModal.style.display = 'none';
-            previewImage.src = '';
-        }
-
-        function downloadImage() {
-            const imgSrc = previewImage.src;
-            if (!imgSrc) return;
-            
-            const timestamp = new Date().getTime();
-            const filename = `image_${timestamp}.png`;
-            
-            const link = document.createElement('a');
-            link.href = imgSrc;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        previewCloseBtn.addEventListener('click', closeImagePreview);
-        previewDownloadBtn.addEventListener('click', downloadImage);
-        
+        });
         previewModal.addEventListener('click', (e) => {
             if (e.target === previewModal) {
-                closeImagePreview();
+                previewModal.style.display = 'none';
+            }
+        });
+        saveImage.addEventListener('click', () => {
+            const imgSrc = previewImage.src;
+            if (imgSrc) {
+                const link = document.createElement('a');
+                link.href = imgSrc;
+                link.download = 'image_' + Date.now() + '.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
         });
 
-        // 文件预览
-        function updateFilePreview() {
-            if (!pendingFiles.length) { 
-                selectedFilesPreview.innerHTML = ''; 
-                return; 
+        // 图片点击委托：阻止跳转并弹出预览
+        messageContainer.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target.tagName === 'IMG' && target.closest('.image-preview')) {
+                e.preventDefault();
+                previewImage.src = target.src;
+                previewModal.style.display = 'flex';
             }
+        });
+
+        function generateMsgId() { return Date.now() + '-' + Math.random().toString(36).substring(2,10); }
+
+        function updateFilePreview() {
+            if (!pendingFiles.length) { selectedFilesPreview.innerHTML = ''; return; }
             let html = '';
             pendingFiles.forEach((file, index) => {
                 const name = file.name.length > 20 ? file.name.slice(0,17)+'...' : file.name;
@@ -1087,6 +979,7 @@
                 });
             });
         }
+        function escapeHTML(str) { return String(str).replace(/[&<>"]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m])); }
 
         fileInput.addEventListener('change', (e) => {
             const newFiles = Array.from(e.target.files);
@@ -1099,7 +992,6 @@
             document.body.classList.toggle('dark-mode');
         });
 
-        // 头像裁剪
         avatarUpload.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -1148,7 +1040,6 @@
             avatarPreview.textContent = '📷';
         });
 
-        // 改名功能
         renameButton.addEventListener('click', () => {
             const newName = nicknameInput.value.trim();
             if (newName && newName !== myName) {
@@ -1167,168 +1058,6 @@
 
         anonCheckbox.addEventListener('change', (e) => { isAnonymous = e.target.checked; });
 
-        // 更新在线人数显示
-        function updatePeerCount() {
-            const count = onlineUsers.size;
-            peerCountDisplay.innerHTML = `${count} 人在线`;
-        }
-
-        // 添加用户到在线集合
-        function addOnlineUser(userId, userData) {
-            if (!userId || userId === myId) return false;
-            
-            if (!onlineUsers.has(userId)) {
-                onlineUsers.set(userId, {
-                    name: userData.name || '未知用户',
-                    anon: userData.anon || false,
-                    avatar: userData.avatar || null,
-                    lastSeen: Date.now(),
-                    missedHeartbeats: 0
-                });
-                
-                updatePeerCount();
-                
-                if (!joinedNotified.has(userId)) {
-                    joinedNotified.add(userId);
-                    const displayName = userData.anon ? '匿名用户' : (userData.name || '一位伙伴');
-                    addSystemMessage(`➤ ${displayName} 加入了聊天`);
-                }
-                
-                return true;
-            } else {
-                const existing = onlineUsers.get(userId);
-                existing.lastSeen = Date.now();
-                existing.missedHeartbeats = 0;
-                if (userData.name) existing.name = userData.name;
-                if (userData.anon !== undefined) existing.anon = userData.anon;
-                if (userData.avatar) existing.avatar = userData.avatar;
-                
-                return false;
-            }
-        }
-
-        // 从在线集合中移除用户
-        function removeOnlineUser(userId, reason = '离开') {
-            if (!userId || userId === myId) return false;
-            
-            if (onlineUsers.has(userId)) {
-                const userData = onlineUsers.get(userId);
-                const displayName = userData.anon ? '匿名用户' : (userData.name || '一位伙伴');
-                
-                onlineUsers.delete(userId);
-                joinedNotified.delete(userId);
-                
-                updatePeerCount();
-                addSystemMessage(`✗ ${displayName} ${reason}`);
-                
-                return true;
-            }
-            return false;
-        }
-
-        // 广播心跳
-        function broadcastHeartbeat() {
-            const heartbeatMsg = {
-                type: 'heartbeat',
-                userId: myId,
-                name: myName,
-                anon: isAnonymous,
-                avatar: myAvatarData,
-                time: Date.now()
-            };
-            
-            for (let conn of connections.values()) {
-                if (conn.open) {
-                    try { conn.send(heartbeatMsg); } catch(e) {}
-                }
-            }
-        }
-
-        // 请求全网用户列表
-        function requestUserList() {
-            const requestMsg = {
-                type: 'requestUserList',
-                userId: myId,
-                time: Date.now()
-            };
-            
-            for (let conn of connections.values()) {
-                if (conn.open) {
-                    try { conn.send(requestMsg); } catch(e) {}
-                }
-            }
-        }
-
-        // 发送用户列表给指定连接
-        function sendUserListTo(conn) {
-            if (!conn || !conn.open) return;
-            
-            const userList = [];
-            for (let [userId, userData] of onlineUsers.entries()) {
-                if (userId !== myId) {
-                    userList.push({
-                        userId: userId,
-                        name: userData.name,
-                        anon: userData.anon,
-                        avatar: userData.avatar
-                    });
-                }
-            }
-            
-            const listMsg = {
-                type: 'userList',
-                users: userList,
-                fromId: myId,
-                time: Date.now()
-            };
-            
-            try { conn.send(listMsg); } catch(e) {}
-        }
-
-        // 心跳检测
-        function checkUserTimeouts() {
-            const now = Date.now();
-            const timeoutUsers = [];
-            
-            for (let [userId, userData] of onlineUsers.entries()) {
-                if (userId === myId) continue;
-                
-                const timeSinceLastSeen = now - userData.lastSeen;
-                
-                if (timeSinceLastSeen > HEARTBEAT_INTERVAL) {
-                    userData.missedHeartbeats = (userData.missedHeartbeats || 0) + 1;
-                    
-                    if (userData.missedHeartbeats > MAX_MISSED_HEARTBEATS) {
-                        timeoutUsers.push(userId);
-                    }
-                } else {
-                    userData.missedHeartbeats = 0;
-                }
-            }
-            
-            timeoutUsers.forEach(userId => {
-                removeOnlineUser(userId, '超时离开');
-            });
-        }
-
-        // 启动心跳检测
-        function startHeartbeat() {
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
-            
-            heartbeatInterval = setInterval(() => {
-                broadcastHeartbeat();
-                checkUserTimeouts();
-                
-                for (let [peerId, conn] of connections.entries()) {
-                    if (!conn.open) {
-                        connections.delete(peerId);
-                        removeOnlineUser(peerId, '连接失效');
-                    }
-                }
-            }, HEARTBEAT_INTERVAL);
-        }
-
-        // 添加消息到UI
         function addMessageToUI(msgData, isSelf = false) {
             const { msgId, text, sender, time, files, recalled, senderAvatar, senderAnon } = msgData;
             if (recalled) return;
@@ -1389,17 +1118,9 @@
                         imgWrap.href = f.data;
                         imgWrap.target = '_blank';
                         imgWrap.classList.add('image-preview');
-                        
                         const img = document.createElement('img');
                         img.src = f.data;
                         img.alt = f.name;
-                        
-                        // 添加点击预览事件
-                        img.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            showImagePreview(f.data, sender, senderAnon);
-                        });
-                        
                         imgWrap.appendChild(img);
                         attachDiv.appendChild(imgWrap);
                     } else {
@@ -1439,6 +1160,10 @@
             messageContainer.scrollTop = messageContainer.scrollHeight;
         }
 
+        function updatePeerCount() {
+            peerCountDisplay.innerHTML = `${onlineUsers.size + 1} 人在线`;
+        }
+
         function recallMessage(msgId) {
             if (!msgId || !mySentMessages.has(msgId)) return;
             document.querySelectorAll(`[data-msgid="${msgId}"]`).forEach(el => el.remove());
@@ -1447,353 +1172,259 @@
             for (let conn of connections.values()) if (conn.open) conn.send(recallPayload);
         }
 
-        // ---------- 从这里开始是整合的可靠文件传输部分 ----------
         async function broadcastMessage(text) {
             const msgId = generateMsgId();
             let fileArray = null;
-            
-            // 处理文件 - 使用可靠的文件读取方式
             if (pendingFiles.length > 0) {
                 fileArray = await Promise.all(pendingFiles.map(async (file) => {
-                    return new Promise((resolve, reject) => {
+                    return new Promise((resolve) => {
                         const reader = new FileReader();
-                        reader.onload = (e) => {
-                            resolve({ 
-                                name: file.name, 
-                                type: file.type, 
-                                data: e.target.result 
-                            });
-                        };
-                        reader.onerror = (e) => {
-                            console.error('文件读取失败', e);
-                            reject(e);
-                        };
+                        reader.onload = (e) => resolve({ name: file.name, type: file.type, data: e.target.result });
                         reader.readAsDataURL(file);
                     });
                 }));
             }
 
-            // 构建消息负载
             const messagePayload = {
-                type: 'chat', 
-                msgId, 
-                text: text || '',
+                type: 'chat', msgId, text: text || '',
                 sender: isAnonymous ? '匿名' : myName,
-                time: Date.now(), 
-                originId: myId,
+                time: Date.now(), originId: myId,
                 files: fileArray,
                 senderAvatar: isAnonymous ? null : (myAvatarData || null),
                 senderAnon: isAnonymous
             };
 
-            // 保存到已发送消息
             mySentMessages.set(msgId, messagePayload);
-            
-            // 本地显示
             addMessageToUI(messagePayload, true);
 
-            // 添加到消息历史
-            messageHistory.add(msgId);
-            if (messageHistory.size > MAX_HISTORY_SIZE) {
-                const first = messageHistory.values().next().value;
-                messageHistory.delete(first);
-            }
+            for (let conn of connections.values()) if (conn.open) try { conn.send(messagePayload); } catch(e) {}
 
-            // 发送给所有连接的 peer
-            for (let conn of connections.values()) {
-                if (conn.open) {
-                    try { 
-                        conn.send(messagePayload); 
-                    } catch(e) {
-                        console.warn('发送失败', e);
-                    }
-                }
-            }
-
-            // 清空待发送文件
             pendingFiles = [];
             updateFilePreview();
         }
 
-        // 处理接收到的数据
+        // 核心数据处理
         function handleData(conn, data) {
-            // 防止处理自己的消息
-            if (data.originId === myId) return;
-            
-            // 检查消息历史
-            if (data.msgId && messageHistory.has(data.msgId)) {
-                return;
-            }
-            
-            if (data.msgId) {
-                messageHistory.add(data.msgId);
-                if (messageHistory.size > MAX_HISTORY_SIZE) {
-                    const first = messageHistory.values().next().value;
-                    messageHistory.delete(first);
-                }
-            }
-
-            // 处理心跳
-            if (data.type === 'heartbeat') {
-                if (data.userId && data.userId !== myId) {
-                    addOnlineUser(data.userId, {
-                        name: data.name,
-                        anon: data.anon,
-                        avatar: data.avatar
-                    });
-                }
-                return;
-            }
-
-            // 处理聊天消息
             if (data.type === 'chat') {
-                if (data.recalled) return;
+                if (data.msgId && receivedMsgIds.has(data.msgId)) return;
+                if (data.msgId) receivedMsgIds.add(data.msgId);
                 
-                // 收到消息，直接显示
-                addMessageToUI(data, false);
-                
-                // 消息中继 - 转发给其他连接
-                for (let [peerId, otherConn] of connections.entries()) {
-                    if (peerId !== conn.peer && otherConn.open) {
-                        try { 
-                            otherConn.send(data); 
-                        } catch(e) {}
-                    }
+                // 通过消息补充在线用户（确保离开提示能正常工作）
+                if (data.originId && data.originId !== myId && !onlineUsers.has(data.originId)) {
+                    onlineUsers.set(data.originId, {
+                        name: data.sender || '未知',
+                        avatar: data.senderAvatar || null,
+                        anon: data.senderAnon || false
+                    });
+                    updatePeerCount();
                 }
-            } 
-            // 处理撤回消息
-            else if (data.type === 'recall') {
-                if (data.msgId) {
-                    document.querySelectorAll(`[data-msgid="${data.msgId}"]`).forEach(el => el.remove());
-                }
-                for (let [peerId, otherConn] of connections.entries()) {
-                    if (peerId !== conn.peer && otherConn.open) {
+
+                if (!data.recalled) addMessageToUI(data, false);
+
+                // 转发给其他所有连接
+                for (let [peerId, otherConn] of connections) {
+                    if (otherConn !== conn && otherConn.open) {
                         try { otherConn.send(data); } catch(e) {}
                     }
                 }
-            }
-            // 处理握手
-            else if (data.type === 'handshake') {
+
+            } else if (data.type === 'recall') {
+                if (data.msgId) {
+                    document.querySelectorAll(`[data-msgid="${data.msgId}"]`).forEach(el => el.remove());
+                    for (let [peerId, otherConn] of connections) {
+                        if (otherConn !== conn && otherConn.open) {
+                            try { otherConn.send(data); } catch(e) {}
+                        }
+                    }
+                }
+
+            } else if (data.type === 'handshake') {
+                const { originId, name, avatar, anon } = data;
+                conn.metadata = conn.metadata || {};
+                conn.metadata.remoteName = name;
+                conn.metadata.remoteAvatar = avatar;
+                conn.metadata.remoteAnon = anon || false;
+                conn.metadata.remoteOriginId = originId;
+
+                if (originId && originId !== myId && !onlineUsers.has(originId)) {
+                    onlineUsers.set(originId, { name, avatar, anon });
+                    addSystemMessage(`➤ ${anon ? '匿名用户' : name} 加入了聊天`);
+                    updatePeerCount();
+                }
+
+                // 主持人处理
+                if (myId === FIXED_HUB_ID) {
+                    // 构建包含所有在线用户（包括主持人自己）的列表，发给新用户
+                    const allUsers = Array.from(onlineUsers.entries()).map(([id, info]) => ({ id, ...info }));
+                    // 加上主持人自己（主持人不包含在 onlineUsers 中）
+                    allUsers.push({
+                        id: myId,
+                        name: myName,
+                        avatar: myAvatarData,
+                        anon: isAnonymous
+                    });
+                    // 过滤掉新用户自己（虽然新用户可能已在 onlineUsers 中，但过滤以防重复）
+                    const otherUsers = allUsers.filter(u => u.id !== originId);
+                    if (otherUsers.length > 0) {
+                        conn.send({ type: 'system', subType: 'userList', users: otherUsers });
+                    }
+
+                    // 向其他用户广播新用户加入
+                    for (let [peerId, otherConn] of connections) {
+                        if (otherConn !== conn && otherConn.open) {
+                            try {
+                                otherConn.send({
+                                    type: 'system',
+                                    subType: 'userJoin',
+                                    user: { id: originId, name, avatar, anon }
+                                });
+                            } catch(e) {}
+                        }
+                    }
+                }
+
+                // 回复自己的信息
+                if (conn.open) conn.send({ type: 'peerInfo', name: myName, avatar: myAvatarData, anon: isAnonymous, originId: myId });
+
+            } else if (data.type === 'peerInfo') {
                 conn.metadata = conn.metadata || {};
                 conn.metadata.remoteName = data.name;
                 conn.metadata.remoteAvatar = data.avatar;
                 conn.metadata.remoteAnon = data.anon || false;
-                
-                // 加入在线用户
-                addOnlineUser(data.originId, {
-                    name: data.name,
-                    anon: data.anon,
-                    avatar: data.avatar
-                });
-                
-                // 回复自己的信息
-                if (conn.open) {
-                    conn.send({ 
-                        type: 'peerInfo', 
-                        name: myName, 
-                        avatar: myAvatarData, 
-                        anon: isAnonymous, 
-                        originId: myId 
-                    });
+                conn.metadata.remoteOriginId = data.originId;
+                // 确保用户在在线列表中
+                if (data.originId && data.originId !== myId && !onlineUsers.has(data.originId)) {
+                    onlineUsers.set(data.originId, { name: data.name, avatar: data.avatar, anon: data.anon });
+                    updatePeerCount();
                 }
-            } 
-            // 处理用户信息
-            else if (data.type === 'peerInfo') {
-                conn.metadata = conn.metadata || {};
-                conn.metadata.remoteName = data.name;
-                conn.metadata.remoteAvatar = data.avatar;
-                conn.metadata.remoteAnon = data.anon;
-                
-                addOnlineUser(data.originId, {
-                    name: data.name,
-                    anon: data.anon,
-                    avatar: data.avatar
-                });
-            }
-            // 处理用户列表请求
-            else if (data.type === 'requestUserList') {
-                sendUserListTo(conn);
-            }
-            // 接收用户列表
-            else if (data.type === 'userList') {
-                if (data.users && Array.isArray(data.users)) {
-                    data.users.forEach(user => {
-                        if (user.userId && user.userId !== myId) {
-                            addOnlineUser(user.userId, {
-                                name: user.name,
-                                anon: user.anon,
-                                avatar: user.avatar
-                            });
+
+            } else if (data.type === 'system') {
+                if (data.subType === 'userList') {
+                    const { users } = data;
+                    users.forEach(u => {
+                        if (u.id && u.id !== myId && !onlineUsers.has(u.id)) {
+                            onlineUsers.set(u.id, { name: u.name, avatar: u.avatar, anon: u.anon });
                         }
                     });
+                    updatePeerCount();
+
+                    // 生成在线用户昵称列表（用于显示）
+                    const names = [];
+                    for (let [id, info] of onlineUsers) {
+                        names.push(info.anon ? '匿名用户' : (info.name || '未知'));
+                    }
+                    const selfName = isAnonymous ? '匿名用户' : myName;
+                    names.push(selfName + ' (你)');
+                    addSystemMessage(`👥 当前在线：${names.join('、')}`);
+
+                } else if (data.subType === 'userJoin') {
+                    const { user } = data;
+                    if (user.id && user.id !== myId && !onlineUsers.has(user.id)) {
+                        onlineUsers.set(user.id, { name: user.name, avatar: user.avatar, anon: user.anon });
+                        addSystemMessage(`➤ ${user.anon ? '匿名用户' : user.name} 加入了聊天`);
+                        updatePeerCount();
+                    }
+
+                } else if (data.subType === 'userLeave') {
+                    const { userId } = data;
+                    if (userId && userId !== myId && onlineUsers.has(userId)) {
+                        const user = onlineUsers.get(userId);
+                        onlineUsers.delete(userId);
+                        addSystemMessage(`✗ ${user.anon ? '匿名用户' : user.name} 离开了聊天`);
+                        updatePeerCount();
+                    }
                 }
             }
         }
 
-        // 建立新连接
         function setupConnection(conn) {
             const remoteId = conn.peer;
-            
-            if (connections.has(remoteId)) {
-                try { connections.get(remoteId).close(); } catch(e) {}
-            }
-            
+            if (connections.has(remoteId)) try { connections.get(remoteId).close(); } catch(e) {}
             connections.set(remoteId, conn);
+            updatePeerCount();
 
             conn.on('data', (data) => handleData(conn, data));
-            
             conn.on('close', () => {
-                connections.delete(remoteId);
-                removeOnlineUser(remoteId, '断开连接');
-            });
-            
-            conn.on('error', (err) => {
-                console.warn('连接错误', remoteId, err);
-            });
+                const remoteName = conn.metadata?.remoteName || '一位伙伴';
+                const remoteAnon = conn.metadata?.remoteAnon || false;
+                const remoteOriginId = conn.metadata?.remoteOriginId;
 
-            // 连接建立后发送握手
-            setTimeout(() => {
-                if (conn.open) {
-                    conn.send({ 
-                        type: 'handshake', 
-                        name: myName, 
-                        avatar: myAvatarData, 
-                        anon: isAnonymous, 
-                        originId: myId 
-                    });
-                    
-                    // 请求用户列表
-                    conn.send({
-                        type: 'requestUserList',
-                        userId: myId,
-                        time: Date.now()
-                    });
+                if (myId === FIXED_HUB_ID && remoteOriginId) {
+                    if (onlineUsers.has(remoteOriginId)) {
+                        onlineUsers.delete(remoteOriginId);
+                        addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName} 离开了聊天`);
+                        updatePeerCount();
+                    }
+                    for (let [peerId, otherConn] of connections) {
+                        if (otherConn !== conn && otherConn.open) {
+                            try {
+                                otherConn.send({
+                                    type: 'system',
+                                    subType: 'userLeave',
+                                    userId: remoteOriginId
+                                });
+                            } catch(e) {}
+                        }
+                    }
+                } else {
+                    if (remoteOriginId && onlineUsers.has(remoteOriginId)) {
+                        onlineUsers.delete(remoteOriginId);
+                        addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName} 离开了聊天`);
+                        updatePeerCount();
+                    }
                 }
-            }, 500);
+
+                connections.delete(remoteId);
+                updatePeerCount();
+            });
+            conn.on('error', () => {});
+
+            setTimeout(() => {
+                if (conn.open) conn.send({ type: 'handshake', name: myName, avatar: myAvatarData, anon: isAnonymous, originId: myId });
+            }, 150);
         }
 
-        // 主动连接
         function connectToPeer(remoteId) {
             if (!peer || remoteId === myId || connections.has(remoteId)) return;
-            
             const conn = peer.connect(remoteId, { reliable: true });
-            
-            conn.on('open', () => {
-                setupConnection(conn);
-            });
-            
-            conn.on('error', (e) => {
-                console.warn('连接失败', remoteId, e);
-            });
+            conn.on('open', () => setupConnection(conn));
+            conn.on('error', () => {});
         }
 
-        // 初始化Peer
         function initPeer() {
-            if (peer) {
-                peer.destroy();
-                connections.clear();
-                onlineUsers.clear();
-                joinedNotified.clear();
-                messageHistory.clear();
-            }
-
-            // 先添加自己到在线集合
-            onlineUsers.set('temp', { name: myName, anon: isAnonymous, avatar: myAvatarData, lastSeen: Date.now() });
+            if (peer) peer.destroy();
+            connections.clear();
+            onlineUsers.clear();
 
             peer = new Peer(FIXED_HUB_ID, PEER_OPTIONS);
-
-            peer.on('open', (id) => {
-                myId = id;
-                
-                onlineUsers.delete('temp');
-                onlineUsers.set(id, { 
-                    name: myName, 
-                    anon: isAnonymous, 
-                    avatar: myAvatarData,
-                    lastSeen: Date.now(),
-                    missedHeartbeats: 0
-                });
-                updatePeerCount();
-                
-                if (id === FIXED_HUB_ID) {
-                    addSystemMessage('✅ 你是主持人，帮助新用户互相发现');
-                } else {
-                    addSystemMessage(`🔄 已连接，ID: ${id}`);
-                    setTimeout(() => {
-                        connectToPeer(FIXED_HUB_ID);
-                    }, 500);
-                }
-                
-                startHeartbeat();
+            peer.on('open', (id) => { 
+                myId = id; 
+                addSystemMessage('✅ 你已创建聊天室 (引导节点)');
             });
-
             peer.on('error', (err) => {
                 if (err.type === 'unavailable-id' || (err.message && err.message.includes('ID'))) {
                     peer.destroy();
                     peer = new Peer(PEER_OPTIONS);
-                    
                     peer.on('open', (randomId) => {
                         myId = randomId;
-                        
-                        onlineUsers.set(randomId, { 
-                            name: myName, 
-                            anon: isAnonymous, 
-                            avatar: myAvatarData,
-                            lastSeen: Date.now(),
-                            missedHeartbeats: 0
-                        });
-                        updatePeerCount();
-                        
-                        addSystemMessage(`🔄 已加入聊天室，ID: ${randomId}`);
-                        
-                        setTimeout(() => {
-                            connectToPeer(FIXED_HUB_ID);
-                        }, 500);
-                        
-                        startHeartbeat();
+                        addSystemMessage('🔄 加入现有聊天室 ...');
+                        setTimeout(() => connectToPeer(FIXED_HUB_ID), 400);
                     });
-                } else {
-                    console.warn('Peer错误:', err);
-                }
+                } else console.warn(err);
             });
-
-            peer.on('connection', (conn) => {
-                setupConnection(conn);
-            });
-
-            peer.on('disconnected', () => {
-                addSystemMessage('⚠️ 连接断开，尝试重连...');
-                setTimeout(() => {
-                    peer.reconnect();
-                }, 2000);
-            });
+            peer.on('connection', (conn) => setupConnection(conn));
+            peer.on('disconnected', () => peer.reconnect());
         }
-
-        // 启动
         initPeer();
-        
-        setInterval(() => {
-            updatePeerCount();
-        }, 2000);
+        setInterval(updatePeerCount, 2000);
 
-        // 发送消息
         sendButton.addEventListener('click', async () => {
             const text = messageInput.value.trim();
             if (!text && pendingFiles.length === 0) return;
             await broadcastMessage(text);
             messageInput.value = '';
         });
-        
-        messageInput.addEventListener('keypress', (e) => { 
-            if (e.key === 'Enter') sendButton.click(); 
-        });
-
-        // 调试
-        window.__debug = { 
-            connections: connections, 
-            myId: myId,
-            onlineUsers: onlineUsers
-        };
+        messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendButton.click(); });
     </script>
 </body>
 </html>
