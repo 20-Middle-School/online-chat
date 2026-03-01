@@ -878,7 +878,7 @@
     </div>
 
     <script type="module">
-        // ---------- 20中学P2P聊天室 · 中央协调节点方案（100%可靠）----------
+        // ---------- 20中学P2P聊天室 · 中央协调节点方案 + 历史消息同步 + 在线列表显示优化 ----------
         import Peer from 'https://esm.sh/peerjs@1.5.4?bundle-deps';
         import Cropper from 'https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/+esm';
 
@@ -886,6 +886,7 @@
             config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' } ] }
         };
         const FIXED_HUB_ID = '20zhongxue-p2p-hub-2026';
+        const MAX_HISTORY = 200; // 最多保存200条历史消息
 
         let peer = null;
         let myId = null;
@@ -897,6 +898,13 @@
 
         // 在线用户列表，key = originId, value = { name, avatar, anon }
         const onlineUsers = new Map();
+
+        // 历史消息存储（仅协调节点有效）
+        let messageHistory = [];
+
+        // 新用户历史加载控制
+        let historyLoaded = false;          // 是否已加载历史消息（非协调节点）
+        let pendingMessages = [];            // 未加载历史前暂存的消息
 
         let pendingFiles = [];
 
@@ -1161,6 +1169,17 @@
             messageContainer.scrollTop = messageContainer.scrollHeight;
         }
 
+        // 显示当前在线用户列表（系统消息）
+        function addCurrentUsersMessage() {
+            const names = [];
+            for (let [id, info] of onlineUsers) {
+                names.push(info.anon ? '匿名用户' : (info.name || '未知'));
+            }
+            const selfName = isAnonymous ? '匿名用户' : myName;
+            names.push(selfName + ' (你)');
+            addSystemMessage(`👥 当前在线：${names.join('、')}`);
+        }
+
         function updatePeerCount() {
             peerCountDisplay.innerHTML = `${onlineUsers.size + 1} 人在线`;
         }
@@ -1169,6 +1188,13 @@
             if (!msgId || !mySentMessages.has(msgId)) return;
             document.querySelectorAll(`[data-msgid="${msgId}"]`).forEach(el => el.remove());
             mySentMessages.delete(msgId);
+            
+            // 如果是协调节点，同时从历史中移除
+            if (myId === FIXED_HUB_ID) {
+                const idx = messageHistory.findIndex(m => m.msgId === msgId);
+                if (idx !== -1) messageHistory.splice(idx, 1);
+            }
+
             const recallPayload = { type: 'recall', msgId, originId: myId };
             for (let conn of connections.values()) if (conn.open) conn.send(recallPayload);
         }
@@ -1195,6 +1221,14 @@
                 senderAnon: isAnonymous
             };
 
+            // 协调节点自己发送的消息也要存入历史
+            if (myId === FIXED_HUB_ID) {
+                if (!messageHistory.some(m => m.msgId === msgId)) {
+                    messageHistory.push(messagePayload);
+                    if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+                }
+            }
+
             mySentMessages.set(msgId, messagePayload);
             addMessageToUI(messagePayload, true);
 
@@ -1207,9 +1241,29 @@
         // 核心数据处理
         function handleData(conn, data) {
             if (data.type === 'chat') {
-                // 显示消息
-                if (!data.recalled) addMessageToUI(data, false);
-                // 转发给其他所有连接（消息转发，不依赖主持人）
+                // 修复：忽略自己发送的消息（已在UI显示，避免重复）
+                if (data.originId === myId) return;
+
+                // 协调节点：存储到历史（去重）
+                if (myId === FIXED_HUB_ID) {
+                    if (!messageHistory.some(m => m.msgId === data.msgId)) {
+                        messageHistory.push(data);
+                        if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+                    }
+                }
+
+                // 普通节点：如果历史尚未加载，则暂存消息
+                if (!historyLoaded && myId !== FIXED_HUB_ID) {
+                    if (!pendingMessages.some(m => m.msgId === data.msgId)) {
+                        pendingMessages.push(data);
+                    }
+                    return; // 暂不显示
+                }
+
+                // 否则正常显示
+                addMessageToUI(data, false);
+
+                // 转发给其他所有连接（排除来源）
                 for (let [peerId, otherConn] of connections) {
                     if (otherConn !== conn && otherConn.open) {
                         try { otherConn.send(data); } catch(e) {}
@@ -1219,6 +1273,12 @@
             } else if (data.type === 'recall') {
                 if (data.msgId) {
                     document.querySelectorAll(`[data-msgid="${data.msgId}"]`).forEach(el => el.remove());
+                    // 协调节点同步从历史中移除
+                    if (myId === FIXED_HUB_ID) {
+                        const idx = messageHistory.findIndex(m => m.msgId === data.msgId);
+                        if (idx !== -1) messageHistory.splice(idx, 1);
+                    }
+                    // 转发给其他连接
                     for (let [peerId, otherConn] of connections) {
                         if (otherConn !== conn && otherConn.open) {
                             try { otherConn.send(data); } catch(e) {}
@@ -1235,12 +1295,12 @@
                 conn.metadata.remoteAnon = anon || false;
                 conn.metadata.remoteOriginId = originId;
 
-                // 如果是主持人，处理用户加入
+                // 如果是主持人，处理用户加入和历史消息发送
                 if (myId === FIXED_HUB_ID) {
                     // 将新用户加入在线列表（如果不在）
                     if (!onlineUsers.has(originId)) {
                         onlineUsers.set(originId, { name, avatar, anon });
-                        addSystemMessage(`➤ ${anon ? '匿名用户' : name} 加入了聊天`);
+                        // 不在这里添加系统消息，等待历史加载完成后统一显示在线列表
                         updatePeerCount();
 
                         // 向新用户发送完整在线列表（包括主持人自己）
@@ -1253,7 +1313,13 @@
                         });
                         conn.send({ type: 'system', subType: 'userList', users: allUsers, msgId: generateMsgId() });
 
-                        // 向其他所有用户广播新用户加入
+                        // 向新用户发送历史消息（按时间顺序）
+                        if (messageHistory.length > 0) {
+                            const historyCopy = messageHistory.map(m => ({ ...m }));
+                            conn.send({ type: 'system', subType: 'history', messages: historyCopy, msgId: generateMsgId() });
+                        }
+
+                        // 向其他所有用户广播新用户加入（其他用户需根据historyLoaded决定是否显示）
                         for (let [peerId, otherConn] of connections) {
                             if (otherConn !== conn && otherConn.open) {
                                 try {
@@ -1283,7 +1349,7 @@
                 // 普通节点处理系统消息（来自主持人）
                 if (data.subType === 'userList') {
                     const { users } = data;
-                    // 清空并重建在线列表（包括主持人）
+                    // 仅更新在线用户列表，不添加系统消息（避免在历史加载前显示）
                     onlineUsers.clear();
                     users.forEach(u => {
                         if (u.id && u.id !== myId) {
@@ -1292,21 +1358,15 @@
                     });
                     updatePeerCount();
 
-                    // 显示当前在线列表
-                    const names = [];
-                    for (let [id, info] of onlineUsers) {
-                        names.push(info.anon ? '匿名用户' : (info.name || '未知'));
-                    }
-                    const selfName = isAnonymous ? '匿名用户' : myName;
-                    names.push(selfName + ' (你)');
-                    addSystemMessage(`👥 当前在线：${names.join('、')}`);
-
                 } else if (data.subType === 'userJoin') {
                     const { user } = data;
                     if (user.id && user.id !== myId && !onlineUsers.has(user.id)) {
                         onlineUsers.set(user.id, { name: user.name, avatar: user.avatar, anon: user.anon });
-                        addSystemMessage(`➤ ${user.anon ? '匿名用户' : user.name} 加入了聊天`);
                         updatePeerCount();
+                        // 仅当历史加载完成后才显示加入消息
+                        if (historyLoaded) {
+                            addSystemMessage(`➤ ${user.anon ? '匿名用户' : user.name} 加入了聊天`);
+                        }
                     }
 
                 } else if (data.subType === 'userLeave') {
@@ -1314,9 +1374,37 @@
                     if (userId && userId !== myId && onlineUsers.has(userId)) {
                         const user = onlineUsers.get(userId);
                         onlineUsers.delete(userId);
-                        addSystemMessage(`✗ ${user.anon ? '匿名用户' : user.name} 离开了聊天`);
                         updatePeerCount();
+                        if (historyLoaded) {
+                            addSystemMessage(`✗ ${user.anon ? '匿名用户' : user.name} 离开了聊天`);
+                        }
                     }
+                } else if (data.subType === 'history') {
+                    // 处理历史消息（仅非协调节点）
+                    if (historyLoaded) return;
+                    const messages = data.messages || [];
+                    
+                    // 清空消息区域（但保留欢迎语，稍后重新添加）
+                    messageContainer.innerHTML = '';
+
+                    // 添加欢迎语
+                    const welcomeDiv = document.createElement('div');
+                    welcomeDiv.classList.add('system-message');
+                    welcomeDiv.textContent = '👋 欢迎来到20中学在线聊天室';
+                    messageContainer.appendChild(welcomeDiv);
+
+                    // 合并历史消息和暂存消息，按时间排序
+                    const allMessages = [...messages, ...pendingMessages];
+                    allMessages.sort((a,b) => (a.time || 0) - (b.time || 0));
+                    allMessages.forEach(msg => {
+                        addMessageToUI(msg, false);
+                    });
+                    pendingMessages = [];
+
+                    historyLoaded = true;
+
+                    // 在历史消息下方显示当前在线用户列表
+                    addCurrentUsersMessage();
                 }
             }
         }
@@ -1338,10 +1426,11 @@
                 if (myId === FIXED_HUB_ID) {
                     if (remoteOriginId && remoteOriginId !== myId && onlineUsers.has(remoteOriginId)) {
                         onlineUsers.delete(remoteOriginId);
+                        // 主持人自己显示离开消息（总是显示）
                         addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName} 离开了聊天`);
                         updatePeerCount();
 
-                        // 广播离开消息给所有其他节点
+                        // 广播离开消息给所有其他节点（其他节点会根据historyLoaded决定是否显示）
                         for (let [peerId, otherConn] of connections) {
                             if (otherConn !== conn && otherConn.open) {
                                 try {
@@ -1356,11 +1445,12 @@
                         }
                     }
                 } else {
-                    // 普通节点只移除自己列表中的该用户（如果没有收到广播，但理论上主持人会广播）
-                    // 但为了保险，如果主持人不在线，自己也要移除
+                    // 普通节点只移除自己列表中的该用户
                     if (remoteOriginId && remoteOriginId !== myId && onlineUsers.has(remoteOriginId)) {
                         onlineUsers.delete(remoteOriginId);
-                        addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName} 离开了聊天`);
+                        if (historyLoaded) {
+                            addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName} 离开了聊天`);
+                        }
                         updatePeerCount();
                     }
                 }
@@ -1392,6 +1482,8 @@
             peer.on('open', (id) => { 
                 myId = id; 
                 addSystemMessage('✅ 你已创建聊天室 (引导节点)');
+                // 协调节点直接标记历史已加载
+                if (myId === FIXED_HUB_ID) historyLoaded = true;
             });
             peer.on('error', (err) => {
                 if (err.type === 'unavailable-id' || (err.message && err.message.includes('ID'))) {
@@ -1400,6 +1492,9 @@
                     peer.on('open', (randomId) => {
                         myId = randomId;
                         addSystemMessage('🔄 加入现有聊天室 ...');
+                        // 普通节点初始未加载历史
+                        historyLoaded = false;
+                        pendingMessages = [];
                         setTimeout(() => connectToPeer(FIXED_HUB_ID), 400);
                     });
                 } else console.warn(err);
@@ -1420,4 +1515,3 @@
     </script>
 </body>
 </html>
-
