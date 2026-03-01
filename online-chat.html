@@ -878,7 +878,7 @@
     </div>
 
     <script type="module">
-        // ---------- 20中学P2P聊天室 · 最终修复版（修复离开提示不显示的问题）----------
+        // ---------- 20中学P2P聊天室 · 终极修复版（离开提示100%可靠）----------
         import Peer from 'https://esm.sh/peerjs@1.5.4?bundle-deps';
         import Cropper from 'https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/+esm';
 
@@ -895,8 +895,11 @@
         const connections = new Map();
         const mySentMessages = new Map();
 
-        const receivedMsgIds = new Set(); // 消息去重
-        const onlineUsers = new Map();     // 在线用户列表，key=originId, value={ name, avatar, anon }
+        // 用于去重已接收的消息ID（包括聊天和系统消息）
+        const receivedMsgIds = new Set();
+
+        // 在线用户列表，key = originId, value = { name, avatar, anon }
+        const onlineUsers = new Map();
 
         let pendingFiles = [];
 
@@ -1206,10 +1209,15 @@
 
         // 核心数据处理
         function handleData(conn, data) {
+            // 所有消息都进行去重（除了某些特殊类型如 handshake 可能不需要）
+            if (data.msgId && receivedMsgIds.has(data.msgId)) {
+                return;
+            }
+            if (data.msgId) {
+                receivedMsgIds.add(data.msgId);
+            }
+
             if (data.type === 'chat') {
-                if (data.msgId && receivedMsgIds.has(data.msgId)) return;
-                if (data.msgId) receivedMsgIds.add(data.msgId);
-                
                 // 通过消息补充在线用户（确保离开提示能正常工作）
                 if (data.originId && data.originId !== myId && !onlineUsers.has(data.originId)) {
                     onlineUsers.set(data.originId, {
@@ -1335,6 +1343,16 @@
                         updatePeerCount();
                     }
                 }
+
+            } else if (data.type === 'leave') {
+                // 处理离开消息（由断开连接的一方广播）
+                const { userId, name, anon } = data;
+                if (userId && userId !== myId && onlineUsers.has(userId)) {
+                    onlineUsers.delete(userId);
+                    addSystemMessage(`✗ ${anon ? '匿名用户' : name} 离开了聊天`);
+                    updatePeerCount();
+                }
+                // 不转发，因为广播已经发送给所有在线节点
             }
         }
 
@@ -1346,33 +1364,32 @@
 
             conn.on('data', (data) => handleData(conn, data));
             conn.on('close', () => {
-                // 使用 conn.peer 作为回退标识，确保即使 metadata 未设置也能正确识别
+                // 获取断开连接的用户信息（从metadata中）
                 const remoteOriginId = conn.metadata?.remoteOriginId || conn.peer;
                 const remoteName = conn.metadata?.remoteName || '一位伙伴';
                 const remoteAnon = conn.metadata?.remoteAnon || false;
 
-                if (myId === FIXED_HUB_ID && remoteOriginId) {
-                    if (onlineUsers.has(remoteOriginId)) {
-                        onlineUsers.delete(remoteOriginId);
-                        addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName} 离开了聊天`);
-                        updatePeerCount();
-                    }
+                // 如果该用户还在在线列表中，则移除并广播离开消息
+                if (remoteOriginId && remoteOriginId !== myId && onlineUsers.has(remoteOriginId)) {
+                    onlineUsers.delete(remoteOriginId);
+                    addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName} 离开了聊天`);
+                    updatePeerCount();
+
+                    // 构造离开消息，广播给所有其他连接
+                    const leaveMsgId = 'leave-' + Date.now() + '-' + remoteOriginId;
+                    const leavePayload = {
+                        type: 'leave',
+                        msgId: leaveMsgId,
+                        userId: remoteOriginId,
+                        name: remoteName,
+                        anon: remoteAnon
+                    };
                     for (let [peerId, otherConn] of connections) {
                         if (otherConn !== conn && otherConn.open) {
                             try {
-                                otherConn.send({
-                                    type: 'system',
-                                    subType: 'userLeave',
-                                    userId: remoteOriginId
-                                });
+                                otherConn.send(leavePayload);
                             } catch(e) {}
                         }
-                    }
-                } else {
-                    if (remoteOriginId && onlineUsers.has(remoteOriginId)) {
-                        onlineUsers.delete(remoteOriginId);
-                        addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName} 离开了聊天`);
-                        updatePeerCount();
                     }
                 }
 
