@@ -6,6 +6,7 @@
     <title>20中学在线聊天室 · 清新P2P</title>
     <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
     <style>
+        /* 样式保持不变（与上一个版本相同） */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -661,7 +662,7 @@
         }
         
         .send-button {
-            background: #2d7fc1;  /* 加深后的蓝色 */
+            background: #2d7fc1;
             border: none;
             border-radius: 60px;
             padding: 12px 28px;
@@ -800,7 +801,7 @@
                 </div>
                 <h1>
                     20中学在线聊天室
-                    <span>P2P 自由清新版 畅所欲言 无任何限制</span>
+                    <span>P2P 清新版</span>
                 </h1>
             </div>
             <div class="sub-bar">
@@ -845,7 +846,7 @@
                 <button class="send-button" id="sendButton">发送</button>
             </div>
         </div>
-        <div class="info-tip" id="infoTip">✨ 1.0版本 · 定期更新 · 敬请期待</div>
+        <div class="info-tip" id="infoTip">✨ 裁剪头像 · 恢复默认 · 深色模式已修复</div>
     </div>
 
     <!-- 裁剪模态框 -->
@@ -877,7 +878,7 @@
     </div>
 
     <script type="module">
-        // ---------- 20中学P2P聊天室 · 最终修复版（在线列表完整 + 进出提示同步）----------
+        // ---------- 20中学P2P聊天室 · 最终修复版（修复离开提示不显示的问题）----------
         import Peer from 'https://esm.sh/peerjs@1.5.4?bundle-deps';
         import Cropper from 'https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/+esm';
 
@@ -1345,9 +1346,10 @@
 
             conn.on('data', (data) => handleData(conn, data));
             conn.on('close', () => {
+                // 使用 conn.peer 作为回退标识，确保即使 metadata 未设置也能正确识别
+                const remoteOriginId = conn.metadata?.remoteOriginId || conn.peer;
                 const remoteName = conn.metadata?.remoteName || '一位伙伴';
                 const remoteAnon = conn.metadata?.remoteAnon || false;
-                const remoteOriginId = conn.metadata?.remoteOriginId;
 
                 if (myId === FIXED_HUB_ID && remoteOriginId) {
                     if (onlineUsers.has(remoteOriginId)) {
