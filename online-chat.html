@@ -6,7 +6,7 @@
     <title>20中学在线聊天室</title>
     <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
     <style>
-        /* 样式完全保持不变，与上一个版本相同 */
+        /* 基础样式优化，提升主题切换性能 */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -22,7 +22,7 @@
             font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', system-ui, sans-serif;
             padding: 12px;
             margin: 0;
-            transition: background 0.2s, color 0.2s;
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
 
         body.dark-mode {
@@ -43,14 +43,16 @@
         body.dark-mode .peer-count,
         body.dark-mode .anon-checkbox,
         body.dark-mode .file-upload-label,
-        body.dark-mode .theme-toggle {
+        body.dark-mode .theme-toggle,
+        body.dark-mode .current-time {
             background: #243b4a;
             border-color: #3f6079;
             color: #e2f0ff;
         }
         
         body.dark-mode .nickname-group,
-        body.dark-mode .avatar-group {
+        body.dark-mode .avatar-group,
+        body.dark-mode .gender-group {
             background: #243b4a;
             border-color: #3f6079;
         }
@@ -69,6 +71,16 @@
         body.dark-mode .reset-avatar-btn {
             background: #2d4457;
             color: #e2f0ff;
+        }
+
+        body.dark-mode .gender-option {
+            background: #2d4457;
+            color: #e2f0ff;
+            border-color: #3f6079;
+        }
+        body.dark-mode .gender-option.active {
+            background: #3a7bb0;
+            border-color: #7ab0d5;
         }
         
         body.dark-mode .name-input {
@@ -102,7 +114,8 @@
             color: #9ab9d6;
         }
         body.dark-mode .file-link,
-        body.dark-mode .image-preview {
+        body.dark-mode .image-preview,
+        body.dark-mode .audio-link {
             background: #1c4057;
             border-color: #3674a0;
             color: #ddf0ff;
@@ -133,7 +146,8 @@
             border-color: #3b78a0;
             color: #e2f0ff;
         }
-        body.dark-mode .info-tip {
+        body.dark-mode .info-tip,
+        body.dark-mode .current-time {
             color: #9fc9ec;
         }
         body.dark-mode .modal-content {
@@ -152,6 +166,22 @@
             background: #3a7bb0;
             color: white;
         }
+        body.dark-mode .audio-player-modal {
+            background: #1d3a4b;
+            border-color: #3674a0;
+        }
+        body.dark-mode .audio-player-modal select,
+        body.dark-mode .audio-player-modal .download-link {
+            background: #2d4457;
+            color: #e2f0ff;
+            border-color: #3f6079;
+        }
+
+        /* 性别颜色 */
+        .gender-male { color: #2196F3; }
+        .gender-female { color: #E91E63; }
+        .gender-unknown { color: #000000; }
+        body.dark-mode .gender-unknown { color: #cccccc; }
 
         .chat-container {
             max-width: 1200px;
@@ -166,7 +196,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            transition: all 0.2s;
+            transition: border-color 0.2s, background 0.2s;
         }
 
         .header {
@@ -270,6 +300,11 @@
             align-items: center;
             gap: 6px;
             white-space: nowrap;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .peer-count:hover {
+            background: #e7f2fc;
         }
 
         .peer-count::before {
@@ -439,6 +474,43 @@
             transition: background 0.2s, color 0.2s;
         }
 
+        /* 性别选择组 */
+        .gender-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: white;
+            border-radius: 40px;
+            border: 1px solid #c7ddef;
+            padding: 3px 4px;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .gender-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            background: transparent;
+            border: 1px solid transparent;
+            transition: 0.1s;
+        }
+        .gender-option[data-gender="male"] { color: #2196F3; }
+        .gender-option[data-gender="female"] { color: #E91E63; }
+        .gender-option[data-gender="unknown"] { color: #000000; }
+        body.dark-mode .gender-option[data-gender="unknown"] { color: #cccccc; }
+        .gender-option.active {
+            background: #d7ecff;
+            border-color: #aaccf0;
+        }
+        body.dark-mode .gender-option.active {
+            background: #3a7bb0;
+            border-color: #7ab0d5;
+        }
+
         .messages-area {
             flex: 1 1 auto;
             padding: 16px 24px;
@@ -454,6 +526,7 @@
             max-width: 85%;
             word-wrap: break-word;
             animation: fadeIn 0.2s ease;
+            position: relative;
         }
 
         .message-self {
@@ -514,6 +587,13 @@
             font-weight: 600;
             color: #0f4a67;
             font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .gender-symbol {
+            font-size: 0.9rem;
         }
 
         .timestamp {
@@ -527,13 +607,31 @@
             word-break: break-word;
         }
 
+        .quote-block {
+            background: rgba(0,0,0,0.05);
+            border-left: 3px solid #2d7fc1;
+            padding: 6px 10px;
+            margin-top: 8px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #1f5a7a;
+        }
+        .quote-sender {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        body.dark-mode .quote-block {
+            background: rgba(255,255,255,0.1);
+            color: #bddbff;
+        }
+
         .file-attachment {
             margin-top: 6px;
             border-top: 1px dashed #aac8e0;
             padding-top: 6px;
         }
 
-        .file-link, .image-preview {
+        .file-link, .image-preview, .audio-link {
             display: inline-flex;
             align-items: center;
             gap: 5px;
@@ -544,6 +642,10 @@
             color: #1d6185;
             border: 1px solid #cae0f0;
             font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .audio-link {
+            background: #f0f7ff;
         }
 
         .image-preview img {
@@ -594,6 +696,26 @@
             gap: 8px;
             min-height: 36px;
             padding: 0 4px;
+        }
+
+        .quote-preview {
+            background: rgba(0,0,0,0.03);
+            border-radius: 20px;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            color: #1f5a7a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #cae0f0;
+        }
+        .quote-preview .remove-quote {
+            background: none;
+            border: none;
+            color: #7a9cba;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-left: auto;
         }
         
         .file-tag {
@@ -678,13 +800,62 @@
             background: #1a6bb0;
         }
 
-        .info-tip {
-            color: #588cad;
-            font-size: 0.75rem;
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             padding: 0 24px 12px 24px;
             flex-shrink: 0;
         }
+        .info-tip {
+            color: #588cad;
+            font-size: 0.75rem;
+        }
+        .current-time {
+            color: #588cad;
+            font-size: 0.75rem;
+            background: white;
+            padding: 5px 16px;
+            border-radius: 40px;
+            border: 1px solid #c7ddef;
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+        }
 
+        /* 自定义上下文菜单 */
+        .context-menu {
+            position: absolute;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border: 1px solid #c7ddef;
+            z-index: 2000;
+            overflow: hidden;
+            min-width: 120px;
+        }
+        .context-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #1f5a7a;
+            transition: 0.1s;
+        }
+        .context-menu-item:hover {
+            background: #e7f2fc;
+        }
+        body.dark-mode .context-menu {
+            background: #243b4a;
+            border-color: #3f6079;
+        }
+        body.dark-mode .context-menu-item {
+            color: #e2f0ff;
+        }
+        body.dark-mode .context-menu-item:hover {
+            background: #2d4457;
+        }
+
+        /* 模态框通用 */
         .modal {
             display: none;
             position: fixed;
@@ -699,9 +870,11 @@
             background: white;
             border-radius: 32px;
             padding: 24px;
-            max-width: 480px;
+            max-width: 500px;
             width: 90%;
             border: 1px solid rgba(255,255,255,0.5);
+            max-height: 80vh;
+            overflow-y: auto;
         }
         .modal-title {
             font-size: 1.2rem;
@@ -720,6 +893,7 @@
             display: flex;
             gap: 10px;
             justify-content: flex-end;
+            flex-wrap: wrap;
         }
         .crop-btn {
             padding: 8px 22px;
@@ -741,14 +915,117 @@
             background: #1a6bb0;
         }
 
+        /* 预览模态框（图片/音频） */
         #previewModal .modal-content {
             max-width: 800px;
             text-align: center;
         }
+        .preview-container {
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 15px;
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+        }
         #previewImage {
-            max-width: 100%;
+            max-width: none;
+            transition: transform 0.1s;
+            transform-origin: center center;
+            cursor: grab;
+            user-select: none;
+            width: 100%;
+            height: auto;
             max-height: 60vh;
-            border-radius: 8px;
+            object-fit: contain;
+        }
+        #previewImage:active {
+            cursor: grabbing;
+        }
+        .audio-player-modal {
+            background: #f0f7ff;
+            border-radius: 24px;
+            padding: 20px;
+            width: 100%;
+            border: 1px solid #cae0f0;
+        }
+        .audio-controls-modal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        .audio-controls-modal select {
+            background: white;
+            border: 1px solid #c7ddef;
+            border-radius: 30px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            color: #1f5a7a;
+            outline: none;
+        }
+        .download-link-modal {
+            background: white;
+            border: 1px solid #c7ddef;
+            border-radius: 30px;
+            padding: 8px 20px;
+            text-decoration: none;
+            color: #1f5a7a;
+            font-size: 0.9rem;
+        }
+
+        /* 在线列表 */
+        .user-list-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0ecf9;
+        }
+        .user-list-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #d4e6f5;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #1f5a7a;
+            flex-shrink: 0;
+        }
+        .user-list-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .user-list-name {
+            font-weight: 600;
+            color: #174257;
+        }
+        .user-list-gender {
+            font-size: 1.1rem;
+        }
+        .user-list-duration {
+            font-size: 0.8rem;
+            color: #588cad;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+        .user-list-self {
+            color: #2d7fc1;
+            font-size: 0.8rem;
+            margin-left: 5px;
         }
 
         @keyframes fadeIn {
@@ -784,6 +1061,9 @@
             .file-upload-label { padding: 7px 14px; font-size: 0.85rem; }
             .send-button { padding: 10px 20px; font-size: 0.9rem; }
             .file-tag { font-size: 0.75rem; padding: 3px 10px; }
+            
+            .footer { flex-direction: column; gap: 5px; align-items: flex-start; }
+            .current-time { align-self: flex-end; }
         }
 
         @media (max-width: 480px) {
@@ -827,6 +1107,13 @@
                         </div>
                         <div class="reset-avatar-btn" id="resetAvatarBtn" title="恢复默认头像">↺</div>
                     </div>
+
+                    <!-- 性别选择 -->
+                    <div class="gender-group" id="genderGroup">
+                        <div class="gender-option" data-gender="male" title="男">♂</div>
+                        <div class="gender-option" data-gender="female" title="女">♀</div>
+                        <div class="gender-option active" data-gender="unknown" title="不愿透露">⚲</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -837,6 +1124,10 @@
 
         <div class="input-area">
             <div class="selected-files" id="selectedFilesPreview"></div>
+            <div class="quote-preview" id="quotePreview" style="display: none;">
+                <span id="quoteText"></span>
+                <button class="remove-quote" id="removeQuoteBtn">✕</button>
+            </div>
             <div class="input-row">
                 <input type="text" id="messageInput" class="message-input" placeholder="输入消息...">
                 <label class="file-upload-label">
@@ -846,7 +1137,10 @@
                 <button class="send-button" id="sendButton">发送</button>
             </div>
         </div>
-        <div class="info-tip" id="infoTip">✨ v1.0 · 不定期更新 · 敬请期待</div>
+        <div class="footer">
+            <div class="info-tip" id="infoTip">✨ v1.0 · 不定期更新 · 敬请期待</div>
+            <div class="current-time" id="currentTime">⏱️ 加载中...</div>
+        </div>
     </div>
 
     <!-- 裁剪模态框 -->
@@ -863,22 +1157,36 @@
         </div>
     </div>
 
-    <!-- 图片预览模态框 -->
+    <!-- 通用预览模态框（图片/音频） -->
     <div class="modal" id="previewModal">
         <div class="modal-content">
-            <div class="modal-title">🖼️ 图片预览</div>
-            <div style="max-height: 70vh; overflow: auto; margin-bottom: 15px;">
-                <img id="previewImage" src="" alt="预览">
-            </div>
-            <div class="crop-actions">
+            <div class="modal-title" id="previewModalTitle">🖼️ 预览</div>
+            <div class="preview-container" id="previewContainer"></div>
+            <div class="crop-actions" style="margin-top: 15px;">
                 <button class="crop-btn" id="closePreview">关闭</button>
-                <button class="crop-btn primary" id="saveImage">保存图片</button>
+                <button class="crop-btn primary" id="saveMedia">保存</button>
             </div>
         </div>
     </div>
 
+    <!-- 在线用户列表模态框 -->
+    <div class="modal" id="userListModal">
+        <div class="modal-content">
+            <div class="modal-title">👥 在线成员</div>
+            <div id="userListContainer" style="max-height: 50vh; overflow-y: auto;"></div>
+            <div class="crop-actions" style="margin-top: 15px;">
+                <button class="crop-btn primary" id="closeUserList">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自定义上下文菜单 -->
+    <div id="contextMenu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" id="contextQuote">💬 引用</div>
+    </div>
+
     <script type="module">
-        // ---------- 20中学P2P聊天室 · 中央协调节点方案 + 历史消息同步 + 在线列表显示优化 ----------
+        // ---------- 20中学P2P聊天室 · 中央协调节点方案 + 性别颜色 + 音频预览 + 图片缩放拖拽 + 引用 + 在线时长 + 北京时间 ----------
         import Peer from 'https://esm.sh/peerjs@1.5.4?bundle-deps';
         import Cropper from 'https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/+esm';
 
@@ -886,27 +1194,25 @@
             config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' } ] }
         };
         const FIXED_HUB_ID = '20zhongxue-p2p-hub-2026';
-        const MAX_HISTORY = 200; // 最多保存200条历史消息
+        const MAX_HISTORY = 200;
 
         let peer = null;
         let myId = null;
-        let myName = '同学' + Math.floor(Math.random() * 100);
+        let myName = '同学' + Math.floor(Math.random() * 1000); // 范围0~999
         let isAnonymous = false;
         let myAvatarData = null;
-        const connections = new Map();          // key: peerId, value: connection
-        const mySentMessages = new Map();       // 自己发送的消息，用于撤回
+        let myGender = 'unknown';
+        const connections = new Map();
+        const mySentMessages = new Map();
 
-        // 在线用户列表，key = originId, value = { name, avatar, anon }
-        const onlineUsers = new Map();
-
-        // 历史消息存储（仅协调节点有效）
+        const onlineUsers = new Map(); // key: originId, value: { name, avatar, anon, gender, joinTime }
         let messageHistory = [];
-
-        // 新用户历史加载控制
-        let historyLoaded = false;          // 是否已加载历史消息（非协调节点）
-        let pendingMessages = [];            // 未加载历史前暂存的消息
-
+        let historyLoaded = false;
+        let pendingMessages = [];
         let pendingFiles = [];
+
+        // 引用相关
+        let quoteMessage = null; // { msgId, sender, text, files? }
 
         // DOM 元素
         const messageContainer = document.getElementById('messageContainer');
@@ -922,6 +1228,11 @@
         const selectedFilesPreview = document.getElementById('selectedFilesPreview');
         const themeToggleBtn = document.getElementById('themeToggleBtn');
         const resetAvatarBtn = document.getElementById('resetAvatarBtn');
+        const genderOptions = document.querySelectorAll('.gender-option');
+        const quotePreview = document.getElementById('quotePreview');
+        const quoteText = document.getElementById('quoteText');
+        const removeQuoteBtn = document.getElementById('removeQuoteBtn');
+        const currentTimeEl = document.getElementById('currentTime');
 
         const cropModal = document.getElementById('cropModal');
         const cropImage = document.getElementById('cropImage');
@@ -930,26 +1241,127 @@
         let cropper = null;
 
         const previewModal = document.getElementById('previewModal');
-        const previewImage = document.getElementById('previewImage');
+        const previewModalTitle = document.getElementById('previewModalTitle');
+        const previewContainer = document.getElementById('previewContainer');
         const closePreview = document.getElementById('closePreview');
-        const saveImage = document.getElementById('saveImage');
+        const saveMedia = document.getElementById('saveMedia');
+
+        const userListModal = document.getElementById('userListModal');
+        const userListContainer = document.getElementById('userListContainer');
+        const closeUserList = document.getElementById('closeUserList');
+
+        const contextMenu = document.getElementById('contextMenu');
+        const contextQuote = document.getElementById('contextQuote');
+
+        let currentPreviewType = null; // 'image', 'audio'
+        let currentMediaSrc = null;
+        let currentMediaFile = null; // 用于下载
+        let mediaScale = 1;
+        let mediaTranslateX = 0, mediaTranslateY = 0;
+        let isDragging = false;
+        let dragStartX, dragStartY;
+        let lastTouchDistance = null;
+        let pinchCenter = null;
+        let containerRect = null;
+        let mediaRect = null;
 
         nicknameInput.value = myName;
 
-        // 预览模态框事件
-        closePreview.addEventListener('click', () => {
-            previewModal.style.display = 'none';
+        // 北京时间实时更新
+        function updateBeijingTime() {
+            const now = new Date();
+            // 转换为北京时间 (UTC+8)
+            const beijingTime = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + (8 * 3600000));
+            const year = beijingTime.getFullYear();
+            const month = String(beijingTime.getMonth() + 1).padStart(2, '0');
+            const day = String(beijingTime.getDate()).padStart(2, '0');
+            const hours = String(beijingTime.getHours()).padStart(2, '0');
+            const minutes = String(beijingTime.getMinutes()).padStart(2, '0');
+            const seconds = String(beijingTime.getSeconds()).padStart(2, '0');
+            currentTimeEl.textContent = `🇨🇳 ${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+        updateBeijingTime();
+        setInterval(updateBeijingTime, 1000);
+
+        // 性别选择
+        genderOptions.forEach(opt => {
+            opt.addEventListener('click', () => {
+                genderOptions.forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                const newGender = opt.dataset.gender;
+                if (newGender !== myGender) {
+                    myGender = newGender;
+                    // 广播个人信息更新
+                    broadcastProfileUpdate();
+                }
+            });
         });
-        previewModal.addEventListener('click', (e) => {
-            if (e.target === previewModal) {
-                previewModal.style.display = 'none';
+
+        // 广播个人信息更新（昵称、头像、匿名、性别）
+        function broadcastProfileUpdate() {
+            const updatePayload = {
+                type: 'profileUpdate',
+                originId: myId,
+                name: myName,
+                avatar: myAvatarData,
+                anon: isAnonymous,
+                gender: myGender,
+                joinTime: window.selfJoinTime
+            };
+            for (let conn of connections.values()) {
+                if (conn.open) conn.send(updatePayload);
+            }
+            // 更新自己的在线列表显示（在下次打开列表时）
+        }
+
+        // 监听昵称修改、头像修改、匿名修改，调用broadcastProfileUpdate
+        renameButton.addEventListener('click', () => {
+            const newName = nicknameInput.value.trim();
+            if (newName && newName !== myName) {
+                myName = newName;
+                addSystemMessage(`✨ 昵称已修改为 "${myName}"`);
+                broadcastProfileUpdate();
+            } else {
+                nicknameInput.value = myName;
             }
         });
-        saveImage.addEventListener('click', () => {
-            const imgSrc = previewImage.src;
-            if (imgSrc) {
+
+        anonCheckbox.addEventListener('change', (e) => {
+            isAnonymous = e.target.checked;
+            broadcastProfileUpdate();
+        });
+
+        // 头像修改后也要广播
+        function afterAvatarChange() {
+            broadcastProfileUpdate();
+        }
+
+        // 预览模态框事件
+        function closePreviewModal() {
+            // 暂停音频
+            const audio = previewContainer.querySelector('audio');
+            if (audio) audio.pause();
+            previewModal.style.display = 'none';
+            resetMediaTransform();
+        }
+
+        closePreview.addEventListener('click', closePreviewModal);
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) {
+                closePreviewModal();
+            }
+        });
+        saveMedia.addEventListener('click', () => {
+            if (currentMediaSrc && currentMediaFile) {
                 const link = document.createElement('a');
-                link.href = imgSrc;
+                link.href = currentMediaSrc;
+                link.download = currentMediaFile.name || 'media';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else if (currentMediaSrc && currentPreviewType === 'image') {
+                const link = document.createElement('a');
+                link.href = currentMediaSrc;
                 link.download = 'image_' + Date.now() + '.png';
                 document.body.appendChild(link);
                 link.click();
@@ -957,15 +1369,338 @@
             }
         });
 
-        // 图片点击委托：阻止跳转并弹出预览
+        // 重置变换
+        function resetMediaTransform() {
+            mediaScale = 1;
+            mediaTranslateX = 0;
+            mediaTranslateY = 0;
+            isDragging = false;
+            lastTouchDistance = null;
+            const mediaEl = document.getElementById('previewImage');
+            if (mediaEl) {
+                mediaEl.style.transform = `scale(${mediaScale}) translate(${mediaTranslateX}px, ${mediaTranslateY}px)`;
+            }
+        }
+
+        // 获取容器和媒体尺寸以计算边界
+        function getMediaBoundaries() {
+            const mediaEl = document.getElementById('previewImage');
+            if (!mediaEl || !previewContainer) return { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
+            const container = previewContainer;
+            const containerRect = container.getBoundingClientRect();
+            const mediaRect = mediaEl.getBoundingClientRect();
+            // 计算在scale后的实际尺寸
+            const scaledWidth = mediaRect.width / mediaScale; // 原始宽度
+            const scaledHeight = mediaRect.height / mediaScale;
+            const effectiveWidth = scaledWidth * mediaScale;
+            const effectiveHeight = scaledHeight * mediaScale;
+
+            // 可移动范围：保证图片至少填满容器，不能移出边界导致空白
+            const maxX = Math.max(0, (effectiveWidth - containerRect.width) / 2);
+            const minX = -maxX;
+            const maxY = Math.max(0, (effectiveHeight - containerRect.height) / 2);
+            const minY = -maxY;
+            return { minX, maxX, minY, maxY };
+        }
+
+        // 图片缩放拖拽逻辑
+        function handleMediaWheel(e) {
+            if (currentPreviewType !== 'image') return;
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            mediaScale = Math.min(3, Math.max(0.5, mediaScale + delta));
+            applyMediaTransformWithBoundary();
+        }
+
+        function handleMediaMouseDown(e) {
+            if (currentPreviewType !== 'image') return;
+            e.preventDefault();
+            isDragging = true;
+            dragStartX = e.clientX - mediaTranslateX;
+            dragStartY = e.clientY - mediaTranslateY;
+            const mediaEl = document.getElementById('previewImage');
+            if (mediaEl) mediaEl.style.cursor = 'grabbing';
+        }
+
+        function handleMediaMouseMove(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            mediaTranslateX = e.clientX - dragStartX;
+            mediaTranslateY = e.clientY - dragStartY;
+            applyMediaTransformWithBoundary();
+        }
+
+        function handleMediaMouseUp(e) {
+            if (isDragging) {
+                isDragging = false;
+                const mediaEl = document.getElementById('previewImage');
+                if (mediaEl) mediaEl.style.cursor = 'grab';
+            }
+        }
+
+        function handleMediaTouchStart(e) {
+            if (currentPreviewType !== 'image') return;
+            if (e.touches.length === 1) {
+                e.preventDefault();
+                isDragging = true;
+                dragStartX = e.touches[0].clientX - mediaTranslateX;
+                dragStartY = e.touches[0].clientY - mediaTranslateY;
+            } else if (e.touches.length === 2) {
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                lastTouchDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+                pinchCenter = {
+                    x: (touch1.clientX + touch2.clientX) / 2,
+                    y: (touch1.clientY + touch2.clientY) / 2
+                };
+            }
+        }
+
+        function handleMediaTouchMove(e) {
+            if (currentPreviewType !== 'image') return;
+            if (e.touches.length === 1 && isDragging) {
+                e.preventDefault();
+                mediaTranslateX = e.touches[0].clientX - dragStartX;
+                mediaTranslateY = e.touches[0].clientY - dragStartY;
+                applyMediaTransformWithBoundary();
+            } else if (e.touches.length === 2 && lastTouchDistance !== null) {
+                e.preventDefault();
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const newDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+                const scaleChange = newDistance / lastTouchDistance;
+                mediaScale = Math.min(3, Math.max(0.5, mediaScale * scaleChange));
+                lastTouchDistance = newDistance;
+                applyMediaTransformWithBoundary();
+            }
+        }
+
+        function handleMediaTouchEnd(e) {
+            if (currentPreviewType !== 'image') return;
+            if (e.touches.length === 0) {
+                isDragging = false;
+                lastTouchDistance = null;
+            } else if (e.touches.length === 1) {
+                lastTouchDistance = null;
+            }
+        }
+
+        function applyMediaTransformWithBoundary() {
+            const mediaEl = document.getElementById('previewImage');
+            if (!mediaEl) return;
+
+            const boundaries = getMediaBoundaries();
+            mediaTranslateX = Math.min(boundaries.maxX, Math.max(boundaries.minX, mediaTranslateX));
+            mediaTranslateY = Math.min(boundaries.maxY, Math.max(boundaries.minY, mediaTranslateY));
+
+            mediaEl.style.transform = `scale(${mediaScale}) translate(${mediaTranslateX}px, ${mediaTranslateY}px)`;
+        }
+
+        // 在线列表模态框
+        closeUserList.addEventListener('click', () => {
+            userListModal.style.display = 'none';
+        });
+        peerCountDisplay.addEventListener('click', () => {
+            updateUserListModal();
+            userListModal.style.display = 'flex';
+            // 启动实时更新
+            if (window.durationInterval) clearInterval(window.durationInterval);
+            window.durationInterval = setInterval(() => {
+                if (userListModal.style.display === 'flex') {
+                    updateUserListModal();
+                } else {
+                    clearInterval(window.durationInterval);
+                }
+            }, 1000);
+        });
+
+        function formatDuration(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function updateUserListModal() {
+            const now = Date.now();
+            let html = '';
+            // 自己
+            const selfGenderClass = myGender === 'male' ? 'gender-male' : (myGender === 'female' ? 'gender-female' : 'gender-unknown');
+            const selfGenderSymbol = { male: '♂', female: '♀', unknown: '⚲' }[myGender] || '';
+            const selfJoinTime = window.selfJoinTime || now;
+            if (!window.selfJoinTime) window.selfJoinTime = now;
+            const selfDuration = formatDuration((now - selfJoinTime) / 1000);
+            html += `<div class="user-list-item">
+                <div class="user-list-avatar" style="background-image: ${myAvatarData ? `url('${myAvatarData}')` : 'none'}">${!myAvatarData ? (myName.charAt(0).toUpperCase()) : ''}</div>
+                <div class="user-list-info">
+                    <span class="user-list-name">${isAnonymous ? '匿名' : myName}</span>
+                    <span class="user-list-gender ${selfGenderClass}">${!isAnonymous ? selfGenderSymbol : ''}</span>
+                    <span class="user-list-self">(你)</span>
+                    <span class="user-list-duration">${selfDuration}</span>
+                </div>
+            </div>`;
+            // 其他用户
+            for (let [id, info] of onlineUsers) {
+                const genderClass = info.gender === 'male' ? 'gender-male' : (info.gender === 'female' ? 'gender-female' : 'gender-unknown');
+                const genderSymbol = { male: '♂', female: '♀', unknown: '⚲' }[info.gender] || '';
+                const duration = info.joinTime ? formatDuration((now - info.joinTime) / 1000) : '00:00:00';
+                html += `<div class="user-list-item">
+                    <div class="user-list-avatar" style="background-image: ${info.avatar ? `url('${info.avatar}')` : 'none'}">${!info.avatar ? (info.name ? info.name.charAt(0).toUpperCase() : '?') : ''}</div>
+                    <div class="user-list-info">
+                        <span class="user-list-name">${info.anon ? '匿名' : info.name}</span>
+                        <span class="user-list-gender ${genderClass}">${!info.anon ? genderSymbol : ''}</span>
+                        <span class="user-list-duration">${duration}</span>
+                    </div>
+                </div>`;
+            }
+            userListContainer.innerHTML = html || '<div style="text-align:center;padding:20px;">暂无其他用户</div>';
+        }
+
+        // 引用功能：右键/长按菜单
+        messageContainer.addEventListener('contextmenu', (e) => {
+            const messageEl = e.target.closest('.message');
+            if (!messageEl) return;
+            e.preventDefault();
+            const msgId = messageEl.dataset.msgid;
+            if (!msgId) return;
+            // 从DOM中获取发送者和文本
+            const senderNameEl = messageEl.querySelector('.sender-name');
+            const sender = senderNameEl ? senderNameEl.childNodes[0].nodeValue.trim() : '未知';
+            const bodyEl = messageEl.querySelector('.message-body');
+            const text = bodyEl ? bodyEl.textContent : '';
+            // 弹出菜单
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = e.pageX + 'px';
+            contextMenu.style.top = e.pageY + 'px';
+            // 存储被引用消息信息
+            contextMenu.dataset.msgId = msgId;
+            contextMenu.dataset.sender = sender;
+            contextMenu.dataset.text = text;
+        });
+
+        // 手机长按
+        let longPressTimer;
+        messageContainer.addEventListener('touchstart', (e) => {
+            const messageEl = e.target.closest('.message');
+            if (!messageEl) return;
+            longPressTimer = setTimeout(() => {
+                const msgId = messageEl.dataset.msgid;
+                if (!msgId) return;
+                const senderNameEl = messageEl.querySelector('.sender-name');
+                const sender = senderNameEl ? senderNameEl.childNodes[0].nodeValue.trim() : '未知';
+                const bodyEl = messageEl.querySelector('.message-body');
+                const text = bodyEl ? bodyEl.textContent : '';
+                const touch = e.touches[0];
+                contextMenu.style.display = 'block';
+                contextMenu.style.left = touch.pageX + 'px';
+                contextMenu.style.top = touch.pageY + 'px';
+                contextMenu.dataset.msgId = msgId;
+                contextMenu.dataset.sender = sender;
+                contextMenu.dataset.text = text;
+            }, 500);
+        });
+        messageContainer.addEventListener('touchend', () => clearTimeout(longPressTimer));
+        messageContainer.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+
+        // 隐藏菜单
+        document.addEventListener('click', () => {
+            contextMenu.style.display = 'none';
+        });
+        document.addEventListener('touchstart', (e) => {
+            if (!e.target.closest('.context-menu')) contextMenu.style.display = 'none';
+        });
+
+        // 引用菜单项点击
+        contextQuote.addEventListener('click', () => {
+            const msgId = contextMenu.dataset.msgId;
+            const sender = contextMenu.dataset.sender;
+            const text = contextMenu.dataset.text;
+            if (msgId && sender) {
+                quoteMessage = { msgId, sender, text };
+                quoteText.textContent = `引用 ${sender}：${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`;
+                quotePreview.style.display = 'flex';
+            }
+            contextMenu.style.display = 'none';
+        });
+
+        removeQuoteBtn.addEventListener('click', () => {
+            quoteMessage = null;
+            quotePreview.style.display = 'none';
+        });
+
+        // 文件/媒体点击委托
         messageContainer.addEventListener('click', (e) => {
             const target = e.target;
+            // 图片预览
             if (target.tagName === 'IMG' && target.closest('.image-preview')) {
                 e.preventDefault();
-                previewImage.src = target.src;
-                previewModal.style.display = 'flex';
+                openImagePreview(target.src);
             }
+            // 音频预览
+            if (target.classList.contains('audio-link') || target.closest('.audio-link')) {
+                e.preventDefault();
+                const link = target.classList.contains('audio-link') ? target : target.closest('.audio-link');
+                const src = link.dataset.src;
+                const filename = link.dataset.filename || 'audio.mp3';
+                openAudioPreview(src, filename);
+            }
+            // 视频文件现在直接下载（无需处理，因为它是普通链接）
         });
+
+        function openImagePreview(src) {
+            currentPreviewType = 'image';
+            currentMediaSrc = src;
+            currentMediaFile = null;
+            previewModalTitle.innerHTML = '🖼️ 图片预览';
+            previewContainer.innerHTML = `<img id="previewImage" src="${src}" alt="预览" style="cursor: grab; max-width: 100%; max-height: 60vh;">`;
+            const img = document.getElementById('previewImage');
+            resetMediaTransform();
+
+            img.onload = () => {
+                applyMediaTransformWithBoundary();
+            };
+
+            img.addEventListener('wheel', handleMediaWheel, { passive: false });
+            img.addEventListener('mousedown', handleMediaMouseDown);
+            img.addEventListener('mousemove', handleMediaMouseMove);
+            img.addEventListener('mouseup', handleMediaMouseUp);
+            img.addEventListener('mouseleave', handleMediaMouseUp);
+            img.addEventListener('touchstart', handleMediaTouchStart);
+            img.addEventListener('touchmove', handleMediaTouchMove, { passive: false });
+            img.addEventListener('touchend', handleMediaTouchEnd);
+            img.addEventListener('touchcancel', handleMediaTouchEnd);
+
+            previewModal.style.display = 'flex';
+        }
+
+        function openAudioPreview(src, filename) {
+            currentPreviewType = 'audio';
+            currentMediaSrc = src;
+            currentMediaFile = { name: filename };
+            previewModalTitle.innerHTML = '🎵 音频预览';
+            previewContainer.innerHTML = `
+                <div class="audio-player-modal">
+                    <audio id="previewAudio" controls src="${src}"></audio>
+                    <div class="audio-controls-modal">
+                        <select id="playbackRateSelect">
+                            <option value="0.5">0.5x</option>
+                            <option value="0.8">0.8x</option>
+                            <option value="1" selected>1x</option>
+                            <option value="1.2">1.2x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2x</option>
+                        </select>
+                        <a href="${src}" download="${filename}" class="download-link-modal">下载</a>
+                    </div>
+                </div>
+            `;
+            const audio = document.getElementById('previewAudio');
+            const rateSelect = document.getElementById('playbackRateSelect');
+            rateSelect.addEventListener('change', () => {
+                audio.playbackRate = parseFloat(rateSelect.value);
+            });
+            previewModal.style.display = 'flex';
+        }
 
         function generateMsgId() { return Date.now() + '-' + Math.random().toString(36).substring(2,10); }
 
@@ -997,8 +1732,11 @@
             fileInput.value = '';
         });
 
+        // 主题切换优化：使用requestAnimationFrame避免卡顿
         themeToggleBtn.addEventListener('click', () => {
-            document.body.classList.toggle('dark-mode');
+            requestAnimationFrame(() => {
+                document.body.classList.toggle('dark-mode');
+            });
         });
 
         avatarUpload.addEventListener('change', (e) => {
@@ -1038,6 +1776,7 @@
                     avatarPreview.textContent = '';
                     cropModal.style.display = 'none';
                     if (cropper) { cropper.destroy(); cropper = null; }
+                    afterAvatarChange();
                 };
                 reader.readAsDataURL(blob);
             }, 'image/png');
@@ -1047,28 +1786,11 @@
             myAvatarData = null;
             avatarPreview.style.backgroundImage = '';
             avatarPreview.textContent = '📷';
+            afterAvatarChange();
         });
-
-        renameButton.addEventListener('click', () => {
-            const newName = nicknameInput.value.trim();
-            if (newName && newName !== myName) {
-                myName = newName;
-                addSystemMessage(`✨ 昵称已修改为 "${myName}"`);
-            } else {
-                nicknameInput.value = myName;
-            }
-        });
-
-        nicknameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                renameButton.click();
-            }
-        });
-
-        anonCheckbox.addEventListener('change', (e) => { isAnonymous = e.target.checked; });
 
         function addMessageToUI(msgData, isSelf = false) {
-            const { msgId, text, sender, time, files, recalled, senderAvatar, senderAnon } = msgData;
+            const { msgId, text, sender, time, files, recalled, senderAvatar, senderAnon, senderGender, quote } = msgData;
             if (recalled) return;
 
             const wrapper = document.createElement('div');
@@ -1101,6 +1823,16 @@
             nameSpan.classList.add('sender-name');
             nameSpan.textContent = displayName;
 
+            // 性别符号（非匿名）
+            if (!senderAnon && senderGender && senderGender !== 'unknown') {
+                const genderSpan = document.createElement('span');
+                genderSpan.classList.add('gender-symbol');
+                const genderClass = senderGender === 'male' ? 'gender-male' : (senderGender === 'female' ? 'gender-female' : 'gender-unknown');
+                genderSpan.classList.add(genderClass);
+                genderSpan.textContent = senderGender === 'male' ? '♂' : (senderGender === 'female' ? '♀' : '⚲');
+                nameSpan.appendChild(genderSpan);
+            }
+
             const timeSpan = document.createElement('span');
             timeSpan.classList.add('timestamp');
             timeSpan.textContent = time ? new Date(time).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
@@ -1112,11 +1844,19 @@
             const bubbleDiv = document.createElement('div');
             bubbleDiv.classList.add('message-bubble');
 
+            // 正文
             const bodyDiv = document.createElement('div');
             bodyDiv.classList.add('message-body');
             bodyDiv.textContent = text || '';
-
             bubbleDiv.appendChild(bodyDiv);
+
+            // 引用块（放在正文下方）
+            if (quote) {
+                const quoteDiv = document.createElement('div');
+                quoteDiv.classList.add('quote-block');
+                quoteDiv.innerHTML = `<div class="quote-sender">${escapeHTML(quote.sender)}:</div><div>${escapeHTML(quote.text)}</div>`;
+                bubbleDiv.appendChild(quoteDiv);
+            }
 
             if (files && files.length > 0) {
                 const attachDiv = document.createElement('div');
@@ -1132,7 +1872,17 @@
                         img.alt = f.name;
                         imgWrap.appendChild(img);
                         attachDiv.appendChild(imgWrap);
+                    } else if (f.type.startsWith('audio/')) {
+                        // 音频文件：显示可预览链接
+                        const link = document.createElement('a');
+                        link.href = '#';
+                        link.classList.add('audio-link', 'file-link');
+                        link.dataset.src = f.data;
+                        link.dataset.filename = f.name;
+                        link.textContent = `🎵 ${f.name}`;
+                        attachDiv.appendChild(link);
                     } else {
+                        // 视频和其他文件：直接下载链接
                         const link = document.createElement('a');
                         link.href = f.data;
                         link.download = f.name;
@@ -1169,14 +1919,15 @@
             messageContainer.scrollTop = messageContainer.scrollHeight;
         }
 
-        // 显示当前在线用户列表（系统消息）
         function addCurrentUsersMessage() {
             const names = [];
             for (let [id, info] of onlineUsers) {
-                names.push(info.anon ? '匿名用户' : (info.name || '未知'));
+                const genderSymbol = { male: '♂', female: '♀', unknown: '' }[info.gender] || '';
+                names.push((info.anon ? '匿名' : info.name) + genderSymbol);
             }
-            const selfName = isAnonymous ? '匿名用户' : myName;
-            names.push(selfName + ' (你)');
+            const selfGenderSymbol = { male: '♂', female: '♀', unknown: '' }[myGender] || '';
+            const selfName = (isAnonymous ? '匿名' : myName) + selfGenderSymbol + ' (你)';
+            names.push(selfName);
             addSystemMessage(`👥 当前在线：${names.join('、')}`);
         }
 
@@ -1189,7 +1940,6 @@
             document.querySelectorAll(`[data-msgid="${msgId}"]`).forEach(el => el.remove());
             mySentMessages.delete(msgId);
             
-            // 如果是协调节点，同时从历史中移除
             if (myId === FIXED_HUB_ID) {
                 const idx = messageHistory.findIndex(m => m.msgId === msgId);
                 if (idx !== -1) messageHistory.splice(idx, 1);
@@ -1218,10 +1968,11 @@
                 time: Date.now(), originId: myId,
                 files: fileArray,
                 senderAvatar: isAnonymous ? null : (myAvatarData || null),
-                senderAnon: isAnonymous
+                senderAnon: isAnonymous,
+                senderGender: isAnonymous ? null : myGender,
+                quote: quoteMessage ? { sender: quoteMessage.sender, text: quoteMessage.text } : null
             };
 
-            // 协调节点自己发送的消息也要存入历史
             if (myId === FIXED_HUB_ID) {
                 if (!messageHistory.some(m => m.msgId === msgId)) {
                     messageHistory.push(messagePayload);
@@ -1236,15 +1987,16 @@
 
             pendingFiles = [];
             updateFilePreview();
+            // 清空引用
+            quoteMessage = null;
+            quotePreview.style.display = 'none';
         }
 
         // 核心数据处理
         function handleData(conn, data) {
             if (data.type === 'chat') {
-                // 修复：忽略自己发送的消息（已在UI显示，避免重复）
                 if (data.originId === myId) return;
 
-                // 协调节点：存储到历史（去重）
                 if (myId === FIXED_HUB_ID) {
                     if (!messageHistory.some(m => m.msgId === data.msgId)) {
                         messageHistory.push(data);
@@ -1252,18 +2004,15 @@
                     }
                 }
 
-                // 普通节点：如果历史尚未加载，则暂存消息
                 if (!historyLoaded && myId !== FIXED_HUB_ID) {
                     if (!pendingMessages.some(m => m.msgId === data.msgId)) {
                         pendingMessages.push(data);
                     }
-                    return; // 暂不显示
+                    return;
                 }
 
-                // 否则正常显示
                 addMessageToUI(data, false);
 
-                // 转发给其他所有连接（排除来源）
                 for (let [peerId, otherConn] of connections) {
                     if (otherConn !== conn && otherConn.open) {
                         try { otherConn.send(data); } catch(e) {}
@@ -1273,12 +2022,10 @@
             } else if (data.type === 'recall') {
                 if (data.msgId) {
                     document.querySelectorAll(`[data-msgid="${data.msgId}"]`).forEach(el => el.remove());
-                    // 协调节点同步从历史中移除
                     if (myId === FIXED_HUB_ID) {
                         const idx = messageHistory.findIndex(m => m.msgId === data.msgId);
                         if (idx !== -1) messageHistory.splice(idx, 1);
                     }
-                    // 转发给其他连接
                     for (let [peerId, otherConn] of connections) {
                         if (otherConn !== conn && otherConn.open) {
                             try { otherConn.send(data); } catch(e) {}
@@ -1286,47 +2033,56 @@
                     }
                 }
 
+            } else if (data.type === 'profileUpdate') {
+                // 更新在线用户信息
+                const { originId, name, avatar, anon, gender, joinTime } = data;
+                if (originId !== myId && onlineUsers.has(originId)) {
+                    onlineUsers.set(originId, { name, avatar, anon, gender, joinTime });
+                    // 可选：更新列表显示
+                }
+
             } else if (data.type === 'handshake') {
-                // 存储对方信息到 metadata
-                const { originId, name, avatar, anon } = data;
+                const { originId, name, avatar, anon, gender } = data;
+                const joinTime = Date.now();
                 conn.metadata = conn.metadata || {};
                 conn.metadata.remoteName = name;
                 conn.metadata.remoteAvatar = avatar;
                 conn.metadata.remoteAnon = anon || false;
                 conn.metadata.remoteOriginId = originId;
+                conn.metadata.remoteGender = gender || 'unknown';
+                conn.metadata.joinTime = joinTime;
 
-                // 如果是主持人，处理用户加入和历史消息发送
                 if (myId === FIXED_HUB_ID) {
-                    // 将新用户加入在线列表（如果不在）
                     if (!onlineUsers.has(originId)) {
-                        onlineUsers.set(originId, { name, avatar, anon });
-                        // 不在这里添加系统消息，等待历史加载完成后统一显示在线列表
+                        onlineUsers.set(originId, { name, avatar, anon, gender: gender || 'unknown', joinTime });
+                        // 主持人立即显示加入消息
+                        const genderSymbol = { male: '♂', female: '♀', unknown: '' }[gender] || '';
+                        addSystemMessage(`➤ ${anon ? '匿名用户' : name}${genderSymbol} 加入了聊天`);
                         updatePeerCount();
 
-                        // 向新用户发送完整在线列表（包括主持人自己）
                         const allUsers = Array.from(onlineUsers.entries()).map(([id, info]) => ({ id, ...info }));
                         allUsers.push({
                             id: myId,
                             name: myName,
                             avatar: myAvatarData,
-                            anon: isAnonymous
+                            anon: isAnonymous,
+                            gender: myGender,
+                            joinTime: window.selfJoinTime || Date.now()
                         });
                         conn.send({ type: 'system', subType: 'userList', users: allUsers, msgId: generateMsgId() });
 
-                        // 向新用户发送历史消息（按时间顺序）
                         if (messageHistory.length > 0) {
                             const historyCopy = messageHistory.map(m => ({ ...m }));
                             conn.send({ type: 'system', subType: 'history', messages: historyCopy, msgId: generateMsgId() });
                         }
 
-                        // 向其他所有用户广播新用户加入（其他用户需根据historyLoaded决定是否显示）
                         for (let [peerId, otherConn] of connections) {
                             if (otherConn !== conn && otherConn.open) {
                                 try {
                                     otherConn.send({
                                         type: 'system',
                                         subType: 'userJoin',
-                                        user: { id: originId, name, avatar, anon },
+                                        user: { id: originId, name, avatar, anon, gender: gender || 'unknown', joinTime },
                                         msgId: generateMsgId()
                                     });
                                 } catch(e) {}
@@ -1335,8 +2091,7 @@
                     }
                 }
 
-                // 回复自己的信息
-                if (conn.open) conn.send({ type: 'peerInfo', name: myName, avatar: myAvatarData, anon: isAnonymous, originId: myId });
+                if (conn.open) conn.send({ type: 'peerInfo', name: myName, avatar: myAvatarData, anon: isAnonymous, originId: myId, gender: myGender, joinTime: window.selfJoinTime || Date.now() });
 
             } else if (data.type === 'peerInfo') {
                 conn.metadata = conn.metadata || {};
@@ -1344,16 +2099,16 @@
                 conn.metadata.remoteAvatar = data.avatar;
                 conn.metadata.remoteAnon = data.anon || false;
                 conn.metadata.remoteOriginId = data.originId;
+                conn.metadata.remoteGender = data.gender || 'unknown';
+                conn.metadata.joinTime = data.joinTime;
 
             } else if (data.type === 'system') {
-                // 普通节点处理系统消息（来自主持人）
                 if (data.subType === 'userList') {
                     const { users } = data;
-                    // 仅更新在线用户列表，不添加系统消息（避免在历史加载前显示）
                     onlineUsers.clear();
                     users.forEach(u => {
                         if (u.id && u.id !== myId) {
-                            onlineUsers.set(u.id, { name: u.name, avatar: u.avatar, anon: u.anon });
+                            onlineUsers.set(u.id, { name: u.name, avatar: u.avatar, anon: u.anon, gender: u.gender || 'unknown', joinTime: u.joinTime });
                         }
                     });
                     updatePeerCount();
@@ -1361,11 +2116,11 @@
                 } else if (data.subType === 'userJoin') {
                     const { user } = data;
                     if (user.id && user.id !== myId && !onlineUsers.has(user.id)) {
-                        onlineUsers.set(user.id, { name: user.name, avatar: user.avatar, anon: user.anon });
+                        onlineUsers.set(user.id, { name: user.name, avatar: user.avatar, anon: user.anon, gender: user.gender || 'unknown', joinTime: user.joinTime });
                         updatePeerCount();
-                        // 仅当历史加载完成后才显示加入消息
                         if (historyLoaded) {
-                            addSystemMessage(`➤ ${user.anon ? '匿名用户' : user.name} 加入了聊天`);
+                            const genderSymbol = { male: '♂', female: '♀', unknown: '' }[user.gender] || '';
+                            addSystemMessage(`➤ ${user.anon ? '匿名用户' : user.name}${genderSymbol} 加入了聊天`);
                         }
                     }
 
@@ -1376,24 +2131,20 @@
                         onlineUsers.delete(userId);
                         updatePeerCount();
                         if (historyLoaded) {
-                            addSystemMessage(`✗ ${user.anon ? '匿名用户' : user.name} 离开了聊天`);
+                            const genderSymbol = { male: '♂', female: '♀', unknown: '' }[user.gender] || '';
+                            addSystemMessage(`✗ ${user.anon ? '匿名用户' : user.name}${genderSymbol} 离开了聊天`);
                         }
                     }
                 } else if (data.subType === 'history') {
-                    // 处理历史消息（仅非协调节点）
                     if (historyLoaded) return;
                     const messages = data.messages || [];
                     
-                    // 清空消息区域（但保留欢迎语，稍后重新添加）
                     messageContainer.innerHTML = '';
-
-                    // 添加欢迎语
                     const welcomeDiv = document.createElement('div');
                     welcomeDiv.classList.add('system-message');
                     welcomeDiv.textContent = '👋 欢迎来到20中学在线聊天室';
                     messageContainer.appendChild(welcomeDiv);
 
-                    // 合并历史消息和暂存消息，按时间排序
                     const allMessages = [...messages, ...pendingMessages];
                     allMessages.sort((a,b) => (a.time || 0) - (b.time || 0));
                     allMessages.forEach(msg => {
@@ -1402,8 +2153,6 @@
                     pendingMessages = [];
 
                     historyLoaded = true;
-
-                    // 在历史消息下方显示当前在线用户列表
                     addCurrentUsersMessage();
                 }
             }
@@ -1417,20 +2166,18 @@
 
             conn.on('data', (data) => handleData(conn, data));
             conn.on('close', () => {
-                // 获取断开连接的用户信息
                 const remoteOriginId = conn.metadata?.remoteOriginId || conn.peer;
                 const remoteName = conn.metadata?.remoteName || '一位伙伴';
                 const remoteAnon = conn.metadata?.remoteAnon || false;
+                const remoteGender = conn.metadata?.remoteGender || 'unknown';
 
-                // 如果是主持人，需要从列表中移除并广播离开
                 if (myId === FIXED_HUB_ID) {
                     if (remoteOriginId && remoteOriginId !== myId && onlineUsers.has(remoteOriginId)) {
                         onlineUsers.delete(remoteOriginId);
-                        // 主持人自己显示离开消息（总是显示）
-                        addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName} 离开了聊天`);
+                        const genderSymbol = { male: '♂', female: '♀', unknown: '' }[remoteGender] || '';
+                        addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName}${genderSymbol} 离开了聊天`);
                         updatePeerCount();
 
-                        // 广播离开消息给所有其他节点（其他节点会根据historyLoaded决定是否显示）
                         for (let [peerId, otherConn] of connections) {
                             if (otherConn !== conn && otherConn.open) {
                                 try {
@@ -1445,11 +2192,11 @@
                         }
                     }
                 } else {
-                    // 普通节点只移除自己列表中的该用户
                     if (remoteOriginId && remoteOriginId !== myId && onlineUsers.has(remoteOriginId)) {
                         onlineUsers.delete(remoteOriginId);
                         if (historyLoaded) {
-                            addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName} 离开了聊天`);
+                            const genderSymbol = { male: '♂', female: '♀', unknown: '' }[remoteGender] || '';
+                            addSystemMessage(`✗ ${remoteAnon ? '匿名用户' : remoteName}${genderSymbol} 离开了聊天`);
                         }
                         updatePeerCount();
                     }
@@ -1460,9 +2207,8 @@
             });
             conn.on('error', () => {});
 
-            // 发送 handshake 给新连接
             setTimeout(() => {
-                if (conn.open) conn.send({ type: 'handshake', name: myName, avatar: myAvatarData, anon: isAnonymous, originId: myId });
+                if (conn.open) conn.send({ type: 'handshake', name: myName, avatar: myAvatarData, anon: isAnonymous, originId: myId, gender: myGender });
             }, 150);
         }
 
@@ -1482,8 +2228,10 @@
             peer.on('open', (id) => { 
                 myId = id; 
                 addSystemMessage('✅ 你已创建聊天室 (引导节点)');
-                // 协调节点直接标记历史已加载
-                if (myId === FIXED_HUB_ID) historyLoaded = true;
+                if (myId === FIXED_HUB_ID) {
+                    historyLoaded = true;
+                    window.selfJoinTime = Date.now();
+                }
             });
             peer.on('error', (err) => {
                 if (err.type === 'unavailable-id' || (err.message && err.message.includes('ID'))) {
@@ -1492,9 +2240,9 @@
                     peer.on('open', (randomId) => {
                         myId = randomId;
                         addSystemMessage('🔄 加入现有聊天室 ...');
-                        // 普通节点初始未加载历史
                         historyLoaded = false;
                         pendingMessages = [];
+                        window.selfJoinTime = Date.now();
                         setTimeout(() => connectToPeer(FIXED_HUB_ID), 400);
                     });
                 } else console.warn(err);
@@ -1507,7 +2255,7 @@
 
         sendButton.addEventListener('click', async () => {
             const text = messageInput.value.trim();
-            if (!text && pendingFiles.length === 0) return;
+            if (!text && pendingFiles.length === 0 && !quoteMessage) return;
             await broadcastMessage(text);
             messageInput.value = '';
         });
